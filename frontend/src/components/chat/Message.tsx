@@ -103,7 +103,7 @@ export function Message({ message, onArtifactClick }: MessageProps) {
         )}
 
         {/* Primary Content (User Message or Assistant Response) */}
-        {message.content && (
+        {message.content && (!message.iterations || message.iterations.length === 0) && (
           <div className="whitespace-pre-wrap break-words">
             {message.content}
           </div>

@@ -74,6 +74,36 @@ export function TypedDataRenderer({ data }: TypedDataRendererProps) {
         case 'json':
             return <CodeViewer code={JSON.stringify(data.data, null, 2)} language="json" />
 
+        case 'multi':
+            // Handle multiple items (e.g., tuple of DataFrames or dict of DataFrames)
+            const multiData = data.data as Array<TypedData & { metadata?: { index?: number; name?: string } }>
+            if (!Array.isArray(multiData)) return null
+
+            const hasNames = data.metadata?.has_names as boolean
+
+            return (
+                <div className="space-y-4">
+                    <div className="text-xs text-muted-foreground">
+                        Multiple outputs ({(data.metadata?.count as number) || multiData.length} items)
+                    </div>
+                    {multiData.map((item, i) => {
+                        // Use name from metadata if available (dict case), otherwise use index
+                        const label = hasNames && item.metadata?.name
+                            ? item.metadata.name
+                            : `Output ${(item.metadata?.index ?? i) + 1}`
+
+                        return (
+                            <div key={i} className="border-l-2 border-primary/30 pl-3">
+                                <div className="text-xs font-medium text-muted-foreground mb-1">
+                                    {label}
+                                </div>
+                                <TypedDataRenderer data={item} />
+                            </div>
+                        )
+                    })}
+                </div>
+            )
+
         case 'text':
         default:
             if (!data.data) return null

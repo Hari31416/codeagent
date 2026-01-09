@@ -168,7 +168,7 @@ export function MainLayout() {
 
                             {/* Selected artifact preview */}
                             {selectedArtifact && (
-                                <div className="border-t p-4 h-1/3 min-h-[200px] flex flex-col">
+                                <div className="border-t p-2 h-1/2 min-h-[400px] flex flex-col">
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-xs font-medium truncate max-w-[200px]">
                                             {selectedArtifact.file_name}

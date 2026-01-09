@@ -16,7 +16,7 @@ export type StreamEventType =
   | 'completed'
   | 'cancelled'
 
-export type TypedDataKind = 'text' | 'table' | 'image' | 'plotly' | 'json'
+export type TypedDataKind = 'text' | 'table' | 'image' | 'plotly' | 'json' | 'multi'
 
 export interface TypedData {
   kind: TypedDataKind

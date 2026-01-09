@@ -52,6 +52,7 @@ class TypedDataKind(str, Enum):
     IMAGE = "image"
     PLOTLY = "plotly"
     JSON = "json"
+    MULTI = "multi"  # For multiple items (e.g., tuple of DataFrames)
 
 
 class TypedData(BaseModel):

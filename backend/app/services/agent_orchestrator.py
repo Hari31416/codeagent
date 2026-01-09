@@ -17,12 +17,7 @@ from app.services.workspace_service import WorkspaceService
 from app.services.workspace_tools import create_workspace_tools
 from app.shared.logging import get_logger
 from app.shared.models import AgentStatus, AgentStatusType
-from app.shared.stream_models import (
-    StreamEvent,
-    StreamEventType,
-    TypedData,
-    TypedDataKind,
-)
+from app.shared.stream_models import StreamEvent, StreamEventType, TypedDataKind
 
 logger = get_logger(__name__)
 
@@ -359,6 +354,56 @@ class AgentOrchestrator:
         if isinstance(data, dict) and "kind" in data and "data" in data:
             return data
 
+        # Handle tuples/lists containing multiple DataFrames or mixed types
+        # e.g., (df1, df2)
+        if isinstance(data, (tuple, list)) and len(data) > 0:
+            # Check if any item is a DataFrame - if so, serialize as MULTI
+            has_dataframe = any(isinstance(item, pd.DataFrame) for item in data)
+            if has_dataframe:
+                items = []
+                for idx, item in enumerate(data):
+                    serialized_item = self._serialize_to_typed_data(item)
+                    if serialized_item:
+                        # Add index metadata for frontend display
+                        if "metadata" not in serialized_item:
+                            serialized_item["metadata"] = {}
+                        serialized_item["metadata"]["index"] = idx
+                        items.append(serialized_item)
+                return {
+                    "kind": TypedDataKind.MULTI,
+                    "data": items,
+                    "metadata": {
+                        "count": len(items),
+                        "original_type": type(data).__name__,
+                    },
+                }
+
+        # Handle dicts containing DataFrames as values
+        # e.g., {'sex_survival': df1, 'sex_age_survival': df2}
+        if isinstance(data, dict) and len(data) > 0:
+            # Check if any value is a DataFrame - if so, serialize as MULTI with named items
+            has_dataframe = any(isinstance(v, pd.DataFrame) for v in data.values())
+            if has_dataframe:
+                items = []
+                for idx, (key, value) in enumerate(data.items()):
+                    serialized_item = self._serialize_to_typed_data(value)
+                    if serialized_item:
+                        # Add key name and index metadata for frontend display
+                        if "metadata" not in serialized_item:
+                            serialized_item["metadata"] = {}
+                        serialized_item["metadata"]["index"] = idx
+                        serialized_item["metadata"]["name"] = str(key)
+                        items.append(serialized_item)
+                return {
+                    "kind": TypedDataKind.MULTI,
+                    "data": items,
+                    "metadata": {
+                        "count": len(items),
+                        "original_type": "dict",
+                        "has_names": True,
+                    },
+                }
+
         # Handle Pandas DataFrames -> Table
         if isinstance(data, pd.DataFrame):
             # Limit rows for performance if needed, but for now send full
@@ -367,7 +412,7 @@ class AgentOrchestrator:
                 "kind": TypedDataKind.TABLE,
                 "data": {
                     "headers": list(data.columns),
-                    "rows": data.fillna("").values.tolist(),
+                    "rows": data.astype(object).fillna("").values.tolist(),
                 },
                 "metadata": {
                     "rows": len(data),
@@ -408,8 +453,27 @@ class AgentOrchestrator:
             except Exception:
                 pass
 
+        # Handle Pandas Series -> Table (Index, Value)
+        if isinstance(data, pd.Series):
+            return {
+                "kind": TypedDataKind.TABLE,
+                "data": {
+                    "headers": ["Index", data.name or "Value"],
+                    "rows": [[i, v] for i, v in zip(data.index, data.values)],
+                },
+                "metadata": {
+                    "rows": len(data),
+                    "columns": 2,
+                    "dtypes": {
+                        "Index": str(data.index.dtype),
+                        "Value": str(data.dtype),
+                    },
+                },
+            }
+
         # Handle Plotly Figure
-        if hasattr(data, "to_json") or (
+        # Check specifically for to_plotly_json to avoid matching pandas objects
+        if hasattr(data, "to_plotly_json") or (
             isinstance(data, dict) and data.get("type") == "plotly_figure"
         ):
             if isinstance(data, dict):
@@ -421,11 +485,9 @@ class AgentOrchestrator:
 
             # If live object
             try:
-                import json
-
                 return {
                     "kind": TypedDataKind.PLOTLY,
-                    "data": json.loads(data.to_json()),
+                    "data": data.to_plotly_json(),
                     "metadata": {},
                 }
             except Exception:
