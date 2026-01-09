@@ -258,7 +258,7 @@ def safer_func(
 class PrintContainer:
     def __init__(self):
         self.value = ""
-        self.sep = ""
+        self.sep = "\n"  # Use newline as default separator
 
     def append(self, text):
         """Appends text to the container"""
@@ -270,7 +270,10 @@ class PrintContainer:
 
     @property
     def logs(self) -> List[str]:
-        """Returns the logs as a single string with new lines"""
+        """Returns the logs as a list of strings"""
+        if not self.sep:
+            # If separator is empty, return the whole value as a single log entry
+            return [self.value.rstrip()] if self.value.strip() else []
         logs_ = self.value.split(self.sep)
         logs_ = [log.rstrip() for log in logs_ if log.strip()]
         return logs_

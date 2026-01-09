@@ -57,6 +57,12 @@ export function useChat({ sessionId, onArtifactsCreated }: UseChatOptions) {
       let assistantCode: string | undefined
       let assistantThoughts: string | undefined
       let artifactIds: string[] = []
+      let assistantArtifacts: Array<{
+        artifact_id: string
+        url: string
+        file_name: string
+        file_type: string
+      }> | undefined
 
       for await (const event of streamQuery(sessionId, {
         query: content,
@@ -78,9 +84,61 @@ export function useChat({ sessionId, onArtifactsCreated }: UseChatOptions) {
 
         // Handle completion
         if (event.type === 'completed' && event.data) {
-          assistantContent = (event.data.result as Record<string, unknown>)?.answer as string || event.message
-          assistantCode = (event.data.result as Record<string, unknown>)?.code as string | undefined
-          assistantThoughts = (event.data.result as Record<string, unknown>)?.thoughts as string | undefined
+          // Extract result - backend sends serialized result directly
+          const rawResult = event.data.result
+
+          // Convert result to displayable string
+          if (rawResult !== null && rawResult !== undefined) {
+            if (typeof rawResult === 'string') {
+              assistantContent = rawResult
+            } else if (Array.isArray(rawResult)) {
+              // DataFrame converted to records - format as summary
+              assistantContent = `Analysis complete. Generated ${rawResult.length} rows of data.`
+            } else if (typeof rawResult === 'object') {
+              // Check if it's a special type like matplotlib_figure
+              const resultObj = rawResult as Record<string, unknown>
+              if (resultObj.type === 'matplotlib_figure' || resultObj.type === 'plotly_figure') {
+                assistantContent = 'Generated visualization.'
+              } else {
+                assistantContent = JSON.stringify(rawResult, null, 2)
+              }
+            } else {
+              assistantContent = String(rawResult)
+            }
+          } else {
+            assistantContent = event.message || 'Analysis complete.'
+          }
+
+          // Extract code and thoughts from code_history if available
+          const codeHistory = event.data.code_history as Array<{
+            code?: string
+            thoughts?: string
+            output?: unknown // Changed from string to unknown
+          }> | undefined
+
+          if (codeHistory && codeHistory.length > 0) {
+            const lastEntry = codeHistory[codeHistory.length - 1]
+            assistantCode = lastEntry.code
+            assistantThoughts = lastEntry.thoughts
+
+            // If we have output from the last execution, use that as content
+            if (lastEntry.output && lastEntry.output !== 'No return value') {
+              if (typeof lastEntry.output === 'string') {
+                assistantContent = lastEntry.output
+              } else {
+                assistantContent = JSON.stringify(lastEntry.output, null, 2)
+              }
+            }
+          }
+
+          // Extract artifacts if available
+          assistantArtifacts = event.data.artifacts as Array<{
+            artifact_id: string
+            url: string
+            file_name: string
+            file_type: string
+          }> | undefined
+
           artifactIds = event.data.artifact_ids as string[] || []
 
           if (artifactIds.length > 0 && onArtifactsCreated) {
@@ -105,7 +163,10 @@ export function useChat({ sessionId, onArtifactsCreated }: UseChatOptions) {
         artifact_ids: artifactIds,
         is_error: false,
         created_at: new Date().toISOString(),
-        metadata: {},
+        metadata: {
+          // Store artifact details with URLs in metadata for immediate display
+          artifacts: assistantArtifacts
+        },
       }
 
       setMessages(prev => [...prev, assistantMessage])

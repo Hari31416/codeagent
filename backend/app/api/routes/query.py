@@ -41,7 +41,7 @@ async def process_query(
             user_query=user_query,
             file_ids=file_uuid_list,
         ):
-            yield f"data: {event.model_dump_json()}\\n\\n"
+            yield f"data: {event.model_dump_json()}\n\n"
 
     return StreamingResponse(
         event_generator(),

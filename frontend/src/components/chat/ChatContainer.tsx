@@ -89,8 +89,8 @@ export function ChatContainer({ sessionId, onArtifactSelect, onArtifactCreated }
             )}
 
             {/* Input area */}
-            <div className="p-4 border-t">
-                <div className="flex gap-2">
+            <div className="p-4 border-t flex justify-center">
+                <div className="flex gap-2 w-full max-w-3xl">
                     <FileUpload
                         onFilesSelected={handleFilesSelected}
                         isUploading={isUploading}

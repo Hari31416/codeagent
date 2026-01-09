@@ -93,12 +93,14 @@ class AgentOrchestrator:
                 dataframes=dataframes,
                 workspace_tools=workspace_tools,
             ):
-                # Convert AgentStatus to StreamEvent
-                yield self._status_to_event(status)
-
                 # Track final result
                 if status.status_type == AgentStatusType.COMPLETED:
                     final_result = status.data
+                    # Don't yield agent completion; we'll yield an enriched one at the end
+                    continue
+
+                # Convert AgentStatus to StreamEvent
+                yield self._status_to_event(status)
 
             # Capture any new artifacts created
             new_artifacts = await self._capture_new_artifacts(
@@ -113,11 +115,27 @@ class AgentOrchestrator:
                     role="user",
                     content=user_query,
                 )
+                # Ensure content is always a string for database storage
+                result_content = ""
+                if final_result:
+                    result_value = final_result.get("result", "")
+                    if isinstance(result_value, (dict, list)):
+                        import json
+
+                        try:
+                            result_content = json.dumps(
+                                result_value, indent=2, default=str
+                            )
+                        except Exception:
+                            result_content = str(result_value)
+                    elif result_value is not None:
+                        result_content = str(result_value)
+
                 await self.message_repo.add_message(
                     conn=conn,
                     session_id=session_id,
                     role="assistant",
-                    content=final_result.get("result", "") if final_result else "",
+                    content=result_content,
                     code=(
                         final_result["code_history"][-1]["code"]
                         if final_result and final_result.get("code_history")
@@ -131,16 +149,53 @@ class AgentOrchestrator:
                     artifact_ids=[a["artifact_id"] for a in new_artifacts],
                 )
 
-            # Yield completion with artifact IDs
+            # Prepare final data
+            response_data = {
+                "artifact_ids": [str(a["artifact_id"]) for a in new_artifacts],
+                "artifacts": [],
+            }
+
+            # Generate presigned URLs for new artifacts
+            for artifact in new_artifacts:
+                try:
+                    url = await self.workspace_service.get_presigned_url(
+                        session_id=session_id,
+                        file_name=artifact["file_name"],
+                    )
+                    response_data["artifacts"].append(
+                        {
+                            "artifact_id": str(artifact["artifact_id"]),
+                            "file_name": artifact["file_name"],
+                            "file_type": artifact["file_type"],
+                            "url": url,
+                        }
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "failed_to_generate_presigned_url",
+                        artifact_id=str(artifact["artifact_id"]),
+                        error=str(e),
+                    )
+
+            if final_result:
+                # Extract the actual result (answer/dataframe) and serialize it
+                # distinct from the full internal state
+                response_data["result"] = self._serialize_data(
+                    final_result.get("result")
+                )
+                response_data["code_history"] = self._serialize_data(
+                    final_result.get("code_history")
+                )
+                response_data["iterations"] = self._serialize_data(
+                    final_result.get("iterations")
+                )
+
             yield StreamEvent(
                 type="completed",
                 event_type=StreamEventType.COMPLETED,
                 agent_name="data_analysis",
                 message="Analysis complete",
-                data={
-                    "result": final_result,
-                    "artifact_ids": [str(a["artifact_id"]) for a in new_artifacts],
-                },
+                data=response_data,
             )
 
         except Exception as e:
@@ -269,28 +324,107 @@ class AgentOrchestrator:
         Handles:
         - pandas.DataFrame -> dict (orient='split')
         - PrintContainer -> string value
+        - litellm response objects -> dict/string
+        - Pydantic models -> dict
+        - Functions/callables -> string representation
         """
         if data is None:
             return None
 
-        # Handle PrintContainer from smolagents executor
-        if hasattr(data, "value") and hasattr(data, "logs") and hasattr(data, "append"):
-            # This is a PrintContainer - convert to string
+        # Handle basic JSON-serializable types first
+        if isinstance(data, (str, int, float, bool)):
+            return data
+
+        # Get type name early for type-based checks
+        type_name = type(data).__name__
+
+        # Debug logging for DataFrames
+        if "DataFrame" in type_name or isinstance(data, pd.DataFrame):
+            logger.info(
+                f"Serializing potential DataFrame: {type_name}, isinstance={isinstance(data, pd.DataFrame)}"
+            )
+
+        # Handle pandas DataFrame and Series EARLY (before callable check)
+        # DataFrames/Series must be caught before other checks
+        if type_name == "DataFrame" or isinstance(data, pd.DataFrame):
+            try:
+                return data.to_dict(orient="records")
+            except Exception:
+                return str(data)
+
+        if type_name == "Series":
+            try:
+                return data.to_list()
+            except Exception:
+                return str(data)
+
+        # Handle callables (functions, lambdas, methods) EARLY - before dict/list recursion
+        # This prevents functions from being passed through to Pydantic
+        if callable(data):
+            func_name = getattr(data, "__name__", None) or type_name
+            return f"<function {func_name}>"
+
+        # Handle PrintContainer from smolagents executor (check before hasattr on 'logs')
+        # Use specific duck typing that won't trigger property accessors
+        type_name = type(data).__name__
+        if type_name == "PrintContainer":
             return str(data)
 
-        if isinstance(data, pd.DataFrame):
-            # Convert DataFrame to split dict format (columns, index, data)
-            # This is efficient and easy to reconstruct or render
-            return data.to_dict(orient="split")
+        # Handle litellm response objects by type name (avoid importing litellm types)
+        if type_name in (
+            "ModelResponse",
+            "Message",
+            "Choices",
+            "StreamingChoices",
+            "Delta",
+        ):
+            # Convert to dict if possible, otherwise string
+            if hasattr(data, "model_dump"):
+                try:
+                    return data.model_dump()
+                except Exception:
+                    pass
+            if hasattr(data, "dict"):
+                try:
+                    return data.dict()
+                except Exception:
+                    pass
+            # Fallback to string representation
+            return str(data)
 
+        # Handle Pydantic models (have model_dump method)
+        if hasattr(data, "model_dump") and callable(getattr(data, "model_dump")):
+            try:
+                return self._serialize_data(data.model_dump())
+            except Exception:
+                return str(data)
+
+        # Handle dicts recursively
         if isinstance(data, dict):
             return {k: self._serialize_data(v) for k, v in data.items()}
 
+        # Handle lists recursively
         if isinstance(data, list):
             return [self._serialize_data(item) for item in data]
 
+        # Handle tuples recursively
         if isinstance(data, tuple):
             return tuple(self._serialize_data(item) for item in data)
 
-        # Return other types as-is (pydantic will handle basic types)
-        return data
+        # Handle numpy arrays
+        if hasattr(data, "tolist") and type_name == "ndarray":
+            try:
+                return data.tolist()
+            except Exception:
+                return str(data)
+
+        # Fallback: try to convert to string for unknown types
+        try:
+            # Check if it's a known simple type that json can handle
+            import json
+
+            json.dumps(data)
+            return data
+        except (TypeError, ValueError):
+            # Not JSON serializable, convert to string
+            return str(data)

@@ -5,7 +5,7 @@ Session management API endpoints.
 from uuid import UUID
 
 from app.db.pool import get_system_db
-from app.db.session_db import MessageRepository, SessionRepository
+from app.db.session_db import ArtifactRepository, MessageRepository, SessionRepository
 from app.services.workspace_service import WorkspaceService
 from app.shared.logging import get_logger
 from fastapi import APIRouter, HTTPException, Query
@@ -16,6 +16,7 @@ router = APIRouter(prefix="/api/v1/sessions", tags=["sessions"])
 
 session_repo = SessionRepository()
 message_repo = MessageRepository()
+artifact_repo = ArtifactRepository()
 workspace_service = WorkspaceService()
 
 
@@ -180,6 +181,31 @@ async def get_session_history(
         enriched_messages.append(enriched)
 
     return {"success": True, "data": enriched_messages, "total": len(enriched_messages)}
+
+
+@router.get("/{session_id}/artifacts")
+async def get_session_artifacts(session_id: UUID):
+    """Get all artifacts for a session."""
+    async with get_system_db() as conn:
+        artifacts = await artifact_repo.get_artifacts_by_session(
+            conn, session_id=session_id
+        )
+
+    return {
+        "success": True,
+        "data": [
+            {
+                "artifact_id": str(a["artifact_id"]),
+                "file_name": a["file_name"],
+                "file_type": a["file_type"],
+                "mime_type": a["mime_type"],
+                "size_bytes": a["size_bytes"],
+                "created_at": a["created_at"].isoformat(),
+            }
+            for a in artifacts
+        ],
+        "total": len(artifacts),
+    }
 
 
 @router.get("")

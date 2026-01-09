@@ -628,7 +628,8 @@ class CodingAgent(BaseAgent):
             data={
                 "success": execution_success,
                 "result": serialized_final_result,
-                "context": context,
+                # "context": context,  # Don't send context to frontend
+                "final_code": code_history[-1]["code"] if code_history else None,
                 "code_history": code_history,
                 "observations": observations,
                 "iterations": len(code_history),
