@@ -31,6 +31,7 @@ class DataAnalysisAgent(CodingAgent):
         self,
         llm_service: LLMService | None = None,
         executor_type: str | None = None,
+        model: str | None = None,
     ):
         # Extended authorized imports for data analysis
         authorized_imports = [
@@ -54,6 +55,11 @@ class DataAnalysisAgent(CodingAgent):
             "PIL",
             "io",
         ]
+
+        # Initialize LLM service with specific model if provided
+        if model and llm_service is None:
+            llm_service = LLMService(model=model)
+
         super().__init__(
             llm_service=llm_service,
             executor_type=executor_type,

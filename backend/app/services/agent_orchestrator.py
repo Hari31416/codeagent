@@ -34,12 +34,13 @@ class AgentOrchestrator:
     6. Release lock
     """
 
-    def __init__(self):
+    def __init__(self, model: str | None = None):
         self.workspace_service = WorkspaceService()
         self.session_state = SessionStateService()
         self.artifact_repo = ArtifactRepository()
         self.message_repo = MessageRepository()
         self.session_repo = SessionRepository()
+        self.model = model
 
     async def process_query(
         self,
@@ -88,7 +89,7 @@ class AgentOrchestrator:
             dataframes = await self._load_dataframes(session_id, file_ids)
 
             # Initialize agent
-            agent = DataAnalysisAgent()
+            agent = DataAnalysisAgent(model=self.model)
 
             # Create workspace tools for this session (with project context)
             workspace_tools = create_workspace_tools(

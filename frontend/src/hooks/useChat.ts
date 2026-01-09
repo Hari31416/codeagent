@@ -33,7 +33,8 @@ export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: Use
 
   const sendMessage = useCallback(async (
     content: string,
-    fileIds?: string[]
+    fileIds?: string[],
+    model?: string
   ) => {
     if (!sessionId) return
 
@@ -93,6 +94,7 @@ export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: Use
       for await (const event of streamQuery(sessionId, {
         query: content,
         file_ids: fileIds,
+        model,
       })) {
         // Update state based on event
         setState(prev => ({

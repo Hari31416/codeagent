@@ -54,4 +54,14 @@ export interface StreamEvent {
 export interface QueryRequest {
   query: string
   file_ids?: string[]
+  model?: string
+}
+
+export interface ModelInfo {
+  id: string
+  name: string
+  provider: string
+  slug: string
+  context_length: number
+  description?: string
 }

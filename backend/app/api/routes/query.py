@@ -26,14 +26,22 @@ async def process_query(
     body = await request.json()
     user_query = body.get("query")
     file_ids = body.get("file_ids", [])
+    model = body.get("model")
 
     if not user_query:
         raise HTTPException(status_code=400, detail="Query is required")
 
+    # Validate custom model prefix
+    if model and not model.startswith("openrouter/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid model format. Custom models must start with 'openrouter/'",
+        )
+
     # Convert file_ids to UUIDs
     file_uuid_list = [UUID(fid) for fid in file_ids] if file_ids else None
 
-    orchestrator = AgentOrchestrator()
+    orchestrator = AgentOrchestrator(model=model)
 
     async def event_generator():
         async for event in orchestrator.process_query(

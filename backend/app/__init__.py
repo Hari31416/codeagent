@@ -7,7 +7,7 @@ Main FastAPI application with all routes and middleware.
 from contextlib import asynccontextmanager
 
 # Import routers
-from app.api.routes import artifacts, projects, query, sessions, upload
+from app.api.routes import artifacts, models, projects, query, sessions, upload
 from app.config import settings
 from app.core.cache import CacheService
 from app.db.init_db import init_database
@@ -76,6 +76,7 @@ app.include_router(sessions.router)
 app.include_router(artifacts.router)
 app.include_router(upload.router)
 app.include_router(query.router)
+app.include_router(models.router)
 
 
 @app.get("/")

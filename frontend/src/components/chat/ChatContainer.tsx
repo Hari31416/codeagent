@@ -16,6 +16,7 @@ interface ChatContainerProps {
 
 export function ChatContainer({ sessionId, onArtifactSelect, onArtifactCreated, onSessionUpdate }: ChatContainerProps) {
     const [attachedFileIds, setAttachedFileIds] = useState<string[]>([])
+    const [selectedModel, setSelectedModel] = useState<string>('')
 
     const {
         messages,
@@ -46,10 +47,10 @@ export function ChatContainer({ sessionId, onArtifactSelect, onArtifactCreated, 
     } = useFileUpload(sessionId)
 
     const handleSend = useCallback(async (content: string) => {
-        await sendMessage(content, attachedFileIds)
+        await sendMessage(content, attachedFileIds, selectedModel || undefined)
         setAttachedFileIds([])
         clearUploads()
-    }, [sendMessage, attachedFileIds, clearUploads])
+    }, [sendMessage, attachedFileIds, clearUploads, selectedModel])
 
     const handleFilesSelected = useCallback(async (files: File[]) => {
         const artifacts = await upload(files)
@@ -92,16 +93,20 @@ export function ChatContainer({ sessionId, onArtifactSelect, onArtifactCreated, 
 
             {/* Input area */}
             <div className="p-4 border-t flex justify-center">
-                <div className="flex gap-2 w-full max-w-3xl">
-                    <FileUpload
-                        onFilesSelected={handleFilesSelected}
-                        isUploading={isUploading}
-                        progress={progress}
-                    />
+                <div className="w-full max-w-3xl">
                     <ChatInput
                         onSend={handleSend}
                         disabled={isProcessing || isUploading}
                         placeholder={isProcessing ? 'Processing...' : 'Ask about your data...'}
+                        selectedModel={selectedModel}
+                        onModelChange={setSelectedModel}
+                        actions={
+                            <FileUpload
+                                onFilesSelected={handleFilesSelected}
+                                isUploading={isUploading}
+                                progress={progress}
+                            />
+                        }
                     />
                 </div>
             </div>
