@@ -263,9 +263,15 @@ class AgentOrchestrator:
 
         Handles:
         - pandas.DataFrame -> dict (orient='split')
+        - PrintContainer -> string value
         """
         if data is None:
             return None
+
+        # Handle PrintContainer from smolagents executor
+        if hasattr(data, "value") and hasattr(data, "logs") and hasattr(data, "append"):
+            # This is a PrintContainer - convert to string
+            return str(data)
 
         if isinstance(data, pd.DataFrame):
             # Convert DataFrame to split dict format (columns, index, data)

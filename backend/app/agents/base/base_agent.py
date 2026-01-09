@@ -721,7 +721,7 @@ class CodingAgent(BaseAgent):
         """
         Serialize a result for JSON safety.
 
-        Handles special types like matplotlib Figures, DataFrames, etc.
+        Handles special types like matplotlib Figures, DataFrames, PrintContainer, etc.
 
         Args:
             result: The result to serialize
@@ -731,6 +731,14 @@ class CodingAgent(BaseAgent):
         """
         if result is None:
             return None
+
+        # Handle PrintContainer from smolagents executor (duck typing)
+        if (
+            hasattr(result, "value")
+            and hasattr(result, "logs")
+            and hasattr(result, "append")
+        ):
+            return str(result)
 
         # Check for matplotlib Figure (duck typing to avoid import)
         if hasattr(result, "savefig") and hasattr(result, "get_axes"):

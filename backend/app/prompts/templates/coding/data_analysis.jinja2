@@ -31,20 +31,41 @@ VISUALIZATION GUIDELINES
 ----------------------------------------------------------------------
 
 When asked to create visualizations:
-1. Use matplotlib or plotly for charts
-2. Save figures to the workspace: plt.savefig('output.png')
-3. Return the filename in your final answer
-4. Prefer plotly for interactive charts when appropriate
+
+MATPLOTLIB:
+- Create your figure and plot as usual
+- DO NOT use plt.savefig() - files saved locally are not captured
+- Instead, RETURN the figure object as the last expression:
+  ```python
+  import matplotlib.pyplot as plt
+  fig, ax = plt.subplots()
+  ax.plot(data)
+  ax.set_title('My Chart')
+  fig  # Return the figure - it will be captured automatically
+  ```
+
+PLOTLY:
+- Create your figure using plotly express or graph_objects
+- RETURN the figure object as the last expression:
+  ```python
+  import plotly.express as px
+  fig = px.bar(df, x='category', y='value')
+  fig  # Return the figure - it will be captured automatically
+  ```
 
 For data tables:
-1. Use df.to_html() for rich table display
-2. Limit displayed rows to 50 for performance
+- Return a DataFrame directly - it will be formatted for display
+- Limit to 50 rows for performance: df.head(50)
 
 ----------------------------------------------------------------------
-OUTPUT ARTIFACTS
+OUTPUT HANDLING
 ----------------------------------------------------------------------
 
-When you generate files (charts, cleaned data, reports):
-1. Save them with descriptive names
-2. Include the file name in your response
-3. The files will be automatically captured and shown to the user
+The execution environment automatically captures and serializes:
+- Matplotlib figures → base64 PNG images
+- Plotly figures → JSON specifications
+- DataFrames → formatted tables
+- Other values → string representation
+
+Simply return the result as the last expression in your code.
+DO NOT try to save files - use return values instead.

@@ -73,6 +73,21 @@ CODE EXECUTION ENVIRONMENT
 6. If code fails, you will receive the error and should fix it in the next iteration
 7. Do NOT define the final_answer variable inside the Python code
 
+SECURITY RESTRICTIONS:
+The following functions are FORBIDDEN and will cause execution errors:
+- globals() - DO NOT USE
+- locals() - DO NOT USE  
+- eval() - DO NOT USE
+- exec() - DO NOT USE
+- compile() - DO NOT USE
+- __import__() - DO NOT USE
+
+Instead of checking `if 'varname' in globals()`:
+- Pre-loaded DataFrames are ALWAYS available as variables (e.g., df, titanic)
+- Simply use the variable directly without checking if it exists
+- If a variable is listed in the context, you can assume it exists
+- Use try/except if you need to handle missing variables
+
 ----------------------------------------------------------------------
 BEST PRACTICES
 ----------------------------------------------------------------------
