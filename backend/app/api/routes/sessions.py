@@ -164,6 +164,16 @@ async def get_session_history(
     # Enrich with artifact URLs if needed
     enriched_messages = []
     for msg in messages:
+        # Parse metadata JSON if it's a string
+        metadata = msg.get("metadata") or {}
+        if isinstance(metadata, str):
+            import json
+
+            try:
+                metadata = json.loads(metadata)
+            except Exception:
+                metadata = {}
+
         enriched = {
             "message_id": str(msg["message_id"]),
             "role": msg["role"],
@@ -172,7 +182,12 @@ async def get_session_history(
             "thoughts": msg["thoughts"],
             "is_error": msg["is_error"],
             "created_at": msg["created_at"].isoformat(),
+            "metadata": metadata,
         }
+
+        # Extract iterations from metadata if present
+        if metadata.get("iterations"):
+            enriched["iterations"] = metadata["iterations"]
 
         # Add artifact IDs if present
         if msg.get("artifact_ids"):

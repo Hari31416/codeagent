@@ -247,20 +247,11 @@ export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: Use
         ? response.data
         : (response.data as any).messages || []
 
-      const messages = rawMessages.map((msg: Message) => {
-        try {
-          // Check if content is a JSON string of a figure
-          if (msg.content && (msg.content.trim().startsWith('{') || msg.content.trim().startsWith('['))) {
-            const parsed = JSON.parse(msg.content)
-            if (parsed && (parsed.type === 'matplotlib_figure' || parsed.type === 'plotly_figure')) {
-              return { ...msg, content: 'Generated visualization.' }
-            }
-          }
-        } catch (e) {
-          // Not JSON or failed to parse, keep original content
-        }
-        return msg
-      })
+      const messages = rawMessages.map((msg: Message) => ({
+        ...msg,
+        artifact_ids: msg.artifact_ids || [],
+        iterations: msg.iterations || [],
+      }))
 
       setMessages(messages)
     }

@@ -131,6 +131,35 @@ class AgentOrchestrator:
                     elif result_value is not None:
                         result_content = str(result_value)
 
+                # Serialize iterations for storage in metadata
+                serialized_iterations = None
+                try:
+                    if final_result and final_result.get("iterations"):
+                        # We need to process iterations to ensure 'output' is in TypedData format
+                        # similar to how we do in _status_to_event
+                        processed_iterations = []
+                        for iter_data in final_result["iterations"]:
+                            # Create a copy to avoid modifying original
+                            processed_iter = iter_data.copy()
+
+                            # Serialize output to TypedData
+                            if "output" in processed_iter:
+                                processed_iter["output"] = (
+                                    self._serialize_to_typed_data(
+                                        processed_iter["output"]
+                                    )
+                                )
+
+                            processed_iterations.append(processed_iter)
+
+                        serialized_iterations = self._serialize_data(
+                            processed_iterations
+                        )
+                except Exception as e:
+                    logger.error(f"Failed to serialize iterations for metadata: {e}")
+                    # Continue without iterations in metadata to ensures message is still saved
+                    serialized_iterations = None
+
                 await self.message_repo.add_message(
                     conn=conn,
                     session_id=session_id,
@@ -147,6 +176,13 @@ class AgentOrchestrator:
                         else None
                     ),
                     artifact_ids=[a["artifact_id"] for a in new_artifacts],
+                    metadata=(
+                        {
+                            "iterations": serialized_iterations,
+                        }
+                        if serialized_iterations
+                        else None
+                    ),
                 )
 
             # Prepare final data
