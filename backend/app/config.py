@@ -47,11 +47,11 @@ class Settings(BaseSettings):
     # ─────────────────────────────────────────────────────────────────────────
     # PostgreSQL
     # ─────────────────────────────────────────────────────────────────────────
-    postgres_user: str = "codingagent"
-    postgres_password: str = "codingagent"
+    postgres_user: str = "codeagent"
+    postgres_password: str = "codeagent"
     postgres_host: str = "localhost"
     postgres_port: int = 5433
-    postgres_db: str = "codingagent"
+    postgres_db: str = "codeagent"
     db_pool_min_size: int = 2
     db_pool_max_size: int = 10
     db_command_timeout: int = 60
@@ -102,7 +102,6 @@ class Settings(BaseSettings):
     minio_secure: bool = False
     minio_bucket: str = "codingagent"
 
-
     @field_validator("minio_endpoint")
     @classmethod
     def clean_minio_endpoint(cls, v: str) -> str:
@@ -112,17 +111,6 @@ class Settings(BaseSettings):
             if v.endswith("/"):
                 v = v[:-1]
         return v
-
-    @model_validator(mode="after")
-    def validate_bhashini_config(self) -> "Settings":
-        if (
-            self.translation_service_provider == "bhashini"
-            and not self.bhashini_api_key
-        ):
-            raise ValueError(
-                "Bhashini API key must be set if translation_service_provider is 'bhashini'"
-            )
-        return self
 
     # ─────────────────────────────────────────────────────────────────────────
     # JWT Authentication
@@ -156,7 +144,6 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     openrouter_api_key: str | None = None
     openrouter_api_base: str = "https://openrouter.ai/api/v1"
-
 
     # ─────────────────────────────────────────────────────────────────────────
     # CORS

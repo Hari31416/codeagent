@@ -5,7 +5,7 @@ Coordinates agent execution with workspace, session state, and artifact manageme
 """
 
 from io import BytesIO
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 from uuid import UUID
 
 import pandas as pd
@@ -239,6 +239,10 @@ class AgentOrchestrator:
             AgentStatusType.COMPLETED: StreamEventType.COMPLETED,
             AgentStatusType.ERROR: StreamEventType.ERROR,
         }
+
+        # Serialize data to ensure it's JSON-safe (e.g., handle DataFrames)
+        serialized_data = self._serialize_data(status.data)
+
         return StreamEvent(
             type=(
                 "status"
@@ -248,7 +252,34 @@ class AgentOrchestrator:
             event_type=event_type_map.get(status.status_type, StreamEventType.THINKING),
             agent_name="data_analysis",
             message=status.message,
-            data=status.data,
+            data=serialized_data,
             iteration=status.iteration,
             total_iterations=status.total_iterations,
         )
+
+    def _serialize_data(self, data: Any) -> Any:
+        """
+        Recursively serialize data to ensure JSON compatibility.
+
+        Handles:
+        - pandas.DataFrame -> dict (orient='split')
+        """
+        if data is None:
+            return None
+
+        if isinstance(data, pd.DataFrame):
+            # Convert DataFrame to split dict format (columns, index, data)
+            # This is efficient and easy to reconstruct or render
+            return data.to_dict(orient="split")
+
+        if isinstance(data, dict):
+            return {k: self._serialize_data(v) for k, v in data.items()}
+
+        if isinstance(data, list):
+            return [self._serialize_data(item) for item in data]
+
+        if isinstance(data, tuple):
+            return tuple(self._serialize_data(item) for item in data)
+
+        # Return other types as-is (pydantic will handle basic types)
+        return data

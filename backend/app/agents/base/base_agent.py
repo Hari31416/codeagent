@@ -11,9 +11,7 @@ from typing import Any, AsyncGenerator
 
 import pandas as pd
 import structlog
-
 from app.agents.executors.executor import ExecutorFactory
-from app.agents.prompts import GLOBAL_CODING_PROMPT
 from app.core.memory import SessionMemory
 from app.shared.llm import LLMService
 from app.shared.models import AgentStatus, AgentStatusType
@@ -302,7 +300,7 @@ class CodingAgent(BaseAgent):
         )
 
         # Combine global and specific prompts
-        full_system_prompt = f"{GLOBAL_CODING_PROMPT}\n\n{self.system_prompt}"
+        full_system_prompt = f"{self.system_prompt}"
 
         # Initial messages
         messages = [{"role": "system", "content": full_system_prompt}]

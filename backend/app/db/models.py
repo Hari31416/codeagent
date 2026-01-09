@@ -6,6 +6,18 @@ should be done via migration scripts.
 """
 
 # SQL Schema for reference
+# SQL Schema for reference
+USERS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS users (
+    user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    full_name VARCHAR(255),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    preferences JSONB DEFAULT '{}'::jsonb
+);
+"""
+
 SESSIONS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS sessions (
     session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -18,25 +30,6 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
-"""
-
-ARTIFACTS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS artifacts (
-    artifact_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id UUID REFERENCES sessions(session_id) ON DELETE CASCADE,
-    message_id UUID REFERENCES messages(message_id) ON DELETE SET NULL,
-    file_name VARCHAR(255) NOT NULL,
-    file_type VARCHAR(50) NOT NULL,
-    mime_type VARCHAR(100) NOT NULL,
-    size_bytes BIGINT NOT NULL,
-    minio_object_key VARCHAR(512) NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    metadata JSONB DEFAULT '{}'::jsonb
-);
-
-CREATE INDEX IF NOT EXISTS idx_artifacts_session ON artifacts(session_id);
-CREATE INDEX IF NOT EXISTS idx_artifacts_message ON artifacts(message_id);
-CREATE INDEX IF NOT EXISTS idx_artifacts_type ON artifacts(file_type);
 """
 
 MESSAGES_TABLE_SQL = """
@@ -56,6 +49,25 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
+"""
+
+ARTIFACTS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS artifacts (
+    artifact_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id UUID REFERENCES sessions(session_id) ON DELETE CASCADE,
+    message_id UUID REFERENCES messages(message_id) ON DELETE SET NULL,
+    file_name VARCHAR(255) NOT NULL,
+    file_type VARCHAR(50) NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+    size_bytes BIGINT NOT NULL,
+    minio_object_key VARCHAR(512) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    metadata JSONB DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS idx_artifacts_session ON artifacts(session_id);
+CREATE INDEX IF NOT EXISTS idx_artifacts_message ON artifacts(message_id);
+CREATE INDEX IF NOT EXISTS idx_artifacts_type ON artifacts(file_type);
 """
 
 

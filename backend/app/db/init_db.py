@@ -8,7 +8,12 @@ Run this script manually or as part of deployment.
 import asyncio
 import sys
 
-from app.db.models import ARTIFACTS_TABLE_SQL, MESSAGES_TABLE_SQL, SESSIONS_TABLE_SQL
+from app.db.models import (
+    ARTIFACTS_TABLE_SQL,
+    MESSAGES_TABLE_SQL,
+    SESSIONS_TABLE_SQL,
+    USERS_TABLE_SQL,
+)
 from app.db.pool import get_system_db
 from app.shared.logging import get_logger
 
@@ -23,6 +28,10 @@ async def init_database():
         logger.info("Starting database initialization")
 
         async with get_system_db() as conn:
+            # Create users table
+            logger.info("Creating users table")
+            await conn.execute(USERS_TABLE_SQL)
+
             # Create sessions table
             logger.info("Creating sessions table")
             await conn.execute(SESSIONS_TABLE_SQL)

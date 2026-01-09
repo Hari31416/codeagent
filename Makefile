@@ -10,10 +10,10 @@ FRONTEND_PORT = 5170
 .PHONY: help setup backend-setup frontend-setup start backend-start frontend-start stop backend-stop frontend-stop logs-dir up
 
 up:
-	docker compose up
+	docker compose -f docker-compose.infra.yml up -d
 
 down:
-	docker compose down
+	docker compose -f docker-compose.infra.yml down
 
 help:
 	@echo "Available commands:"
@@ -62,3 +62,5 @@ backend-stop:
 frontend-stop:
 	@echo "Stopping frontend on port $(FRONTEND_PORT)..."
 	@-lsof -ti:$(FRONTEND_PORT) | xargs kill -9 2>/dev/null || echo "Frontend not running"
+
+restart: stop start

@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from app.api.routes import artifacts, query, sessions, upload
 from app.config import settings
 from app.core.cache import CacheService
+from app.db.init_db import init_database
 from app.db.pool import DatabasePool
 from app.shared.logging import get_logger
 from fastapi import FastAPI
@@ -31,6 +32,10 @@ async def lifespan(app: FastAPI):
     # Initialize database pool
     await DatabasePool.get_pool()
     logger.info("Database pool initialized")
+
+    # Initialize database tables
+    await init_database()
+    logger.info("Database tables initialized")
 
     # Initialize cache
     await CacheService.get_client()

@@ -1,7 +1,7 @@
-import { ComponentExample } from "@/components/component-example";
+import { MainLayout } from '@/components/layout/MainLayout'
 
-export function App() {
-return <ComponentExample />;
+function App() {
+    return <MainLayout />
 }
 
-export default App;
+export default App
