@@ -11,7 +11,7 @@ from uuid import UUID
 import pandas as pd
 from app.agents.data_analysis_agent import DataAnalysisAgent
 from app.db.pool import get_system_db
-from app.db.session_db import ArtifactRepository, MessageRepository
+from app.db.session_db import ArtifactRepository, MessageRepository, SessionRepository
 from app.services.session_state_service import SessionStateService
 from app.services.workspace_service import WorkspaceService
 from app.services.workspace_tools import create_workspace_tools
@@ -39,6 +39,7 @@ class AgentOrchestrator:
         self.session_state = SessionStateService()
         self.artifact_repo = ArtifactRepository()
         self.message_repo = MessageRepository()
+        self.session_repo = SessionRepository()
 
     async def process_query(
         self,
@@ -75,14 +76,24 @@ class AgentOrchestrator:
                 session_id
             )
 
+            # Get project_id for this session to enable shared artifacts
+            # We'll need this for workspace tools
+            project_id = None
+            async with get_system_db() as conn:
+                session = await self.session_repo.get_session(conn, session_id)
+                if session and session.get("project_id"):
+                    project_id = session["project_id"]
+
             # Load DataFrames for relevant files
             dataframes = await self._load_dataframes(session_id, file_ids)
 
             # Initialize agent
             agent = DataAnalysisAgent()
 
-            # Create workspace tools for this session
-            workspace_tools = create_workspace_tools(session_id, self.workspace_service)
+            # Create workspace tools for this session (with project context)
+            workspace_tools = create_workspace_tools(
+                session_id, self.workspace_service, project_id=project_id
+            )
 
             # Execute with streaming
             final_result = None

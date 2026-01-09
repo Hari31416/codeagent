@@ -97,6 +97,30 @@ async def get_session_artifacts(session_id: UUID):
     }
 
 
+@router.get("/projects/{project_id}")
+async def get_project_artifacts(project_id: UUID):
+    """Get all project-level artifacts (shared across all sessions in project)."""
+    async with get_system_db() as conn:
+        artifacts = await artifact_repo.get_artifacts_by_project(conn, project_id)
+
+    return {
+        "success": True,
+        "data": [
+            {
+                "artifact_id": str(a["artifact_id"]),
+                "project_id": str(a["project_id"]) if a.get("project_id") else None,
+                "file_name": a["file_name"],
+                "file_type": a["file_type"],
+                "mime_type": a["mime_type"],
+                "size_bytes": a["size_bytes"],
+                "created_at": a["created_at"].isoformat(),
+            }
+            for a in artifacts
+        ],
+        "total": len(artifacts),
+    }
+
+
 @router.delete("/{artifact_id}")
 async def delete_artifact(artifact_id: UUID):
     """

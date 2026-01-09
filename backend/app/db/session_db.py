@@ -365,25 +365,31 @@ class ArtifactRepository:
     async def create_artifact(
         self,
         conn: Connection,
-        session_id: UUID,
         file_name: str,
         file_type: str,
         mime_type: str,
         size_bytes: int,
         minio_object_key: str,
+        session_id: UUID | None = None,
+        project_id: UUID | None = None,
         message_id: UUID | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Register a new artifact in the database."""
         import json
 
+        # Validate that at least one of session_id or project_id is provided
+        if session_id is None and project_id is None:
+            raise ValueError("Either session_id or project_id must be provided")
+
         row = await conn.fetchrow(
             """
-            INSERT INTO artifacts (session_id, message_id, file_name, file_type, mime_type, size_bytes, minio_object_key, metadata)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING artifact_id, session_id, message_id, file_name, file_type, mime_type, size_bytes, minio_object_key, created_at, metadata
+            INSERT INTO artifacts (session_id, project_id, message_id, file_name, file_type, mime_type, size_bytes, minio_object_key, metadata)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING artifact_id, session_id, project_id, message_id, file_name, file_type, mime_type, size_bytes, minio_object_key, created_at, metadata
             """,
             session_id,
+            project_id,
             message_id,
             file_name,
             file_type,
@@ -396,7 +402,8 @@ class ArtifactRepository:
         logger.info(
             "artifact_created",
             artifact_id=str(row["artifact_id"]),
-            session_id=str(session_id),
+            session_id=str(session_id) if session_id else None,
+            project_id=str(project_id) if project_id else None,
             file_name=file_name,
         )
 
@@ -410,7 +417,7 @@ class ArtifactRepository:
         """Get artifact by ID."""
         row = await conn.fetchrow(
             """
-            SELECT artifact_id, session_id, message_id, file_name, file_type, mime_type, size_bytes, minio_object_key, created_at, metadata
+            SELECT artifact_id, session_id, project_id, message_id, file_name, file_type, mime_type, size_bytes, minio_object_key, created_at, metadata
             FROM artifacts
             WHERE artifact_id = $1
             """,
@@ -426,7 +433,7 @@ class ArtifactRepository:
         """Get all artifacts for a session."""
         rows = await conn.fetch(
             """
-            SELECT artifact_id, session_id, message_id, file_name, file_type, mime_type, size_bytes, minio_object_key, created_at, metadata
+            SELECT artifact_id, session_id, project_id, message_id, file_name, file_type, mime_type, size_bytes, minio_object_key, created_at, metadata
             FROM artifacts
             WHERE session_id = $1
             ORDER BY created_at DESC
@@ -443,12 +450,48 @@ class ArtifactRepository:
         """Get all artifacts associated with a specific message."""
         rows = await conn.fetch(
             """
-            SELECT artifact_id, session_id, message_id, file_name, file_type, mime_type, size_bytes, minio_object_key, created_at, metadata
+            SELECT artifact_id, session_id, project_id, message_id, file_name, file_type, mime_type, size_bytes, minio_object_key, created_at, metadata
             FROM artifacts
             WHERE message_id = $1
             ORDER BY created_at ASC
             """,
             message_id,
+        )
+        return [dict(row) for row in rows]
+
+    async def get_artifacts_by_project(
+        self,
+        conn: Connection,
+        project_id: UUID,
+    ) -> list[dict[str, Any]]:
+        """Get all project-level artifacts (shared across all sessions in project)."""
+        rows = await conn.fetch(
+            """
+            SELECT artifact_id, session_id, project_id, message_id, file_name, file_type, mime_type, size_bytes, minio_object_key, created_at, metadata
+            FROM artifacts
+            WHERE project_id = $1 AND session_id IS NULL
+            ORDER BY created_at DESC
+            """,
+            project_id,
+        )
+        return [dict(row) for row in rows]
+
+    async def get_project_and_session_artifacts(
+        self,
+        conn: Connection,
+        project_id: UUID,
+        session_id: UUID,
+    ) -> list[dict[str, Any]]:
+        """Get both project-level artifacts and session-specific artifacts."""
+        rows = await conn.fetch(
+            """
+            SELECT artifact_id, session_id, project_id, message_id, file_name, file_type, mime_type, size_bytes, minio_object_key, created_at, metadata
+            FROM artifacts
+            WHERE (project_id = $1 AND session_id IS NULL) OR session_id = $2
+            ORDER BY created_at DESC
+            """,
+            project_id,
+            session_id,
         )
         return [dict(row) for row in rows]
 

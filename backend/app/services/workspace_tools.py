@@ -19,6 +19,7 @@ logger = get_logger(__name__)
 def create_workspace_tools(
     session_id: UUID,
     workspace_service: WorkspaceService,
+    project_id: UUID | None = None,
 ) -> dict[str, Callable]:
     """
     Create a dictionary of workspace tools bound to a specific session.
@@ -39,9 +40,6 @@ def create_workspace_tools(
         if loop.is_running():
             # If we're already in a loop (e.g. during testing or nested execution),
             # we can't use run_until_complete.
-            # Ideally agent code runs in a separate thread/process where this isn't an issue.
-            # addressing via ensuring usage of nest_asyncio elsewhere or assuming
-            # the executor runs in a thread pool (which BaseAgent._execute_code does).
             import nest_asyncio
 
             nest_asyncio.apply()
@@ -53,9 +51,35 @@ def create_workspace_tools(
     # -------------------------------------------------------------------------
 
     def list_files() -> list[str]:
-        """List all files in the current workspace."""
+        """List all files in the current workspace (including project files)."""
+        # Get session files
         files = _run_async(workspace_service.list_workspace_files(session_id))
-        return [f["name"].split("/")[-1] for f in files]
+        file_names = {f["name"].split("/")[-1] for f in files}
+
+        # Get project files if available
+        if project_id:
+            project_files = _run_async(workspace_service.list_project_files(project_id))
+            project_file_names = {f["name"].split("/")[-1] for f in project_files}
+            file_names.update(project_file_names)
+
+        return sorted(list(file_names))
+
+    def _download_file_data(filename: str) -> bytes:
+        """Helper to download file from session or project workspace."""
+        try:
+            # Try session workspace first
+            return _run_async(workspace_service.download_file(session_id, filename))
+        except Exception as e:
+            # If failed and we have a project, try project workspace
+            if project_id:
+                try:
+                    return _run_async(
+                        workspace_service.download_project_file(project_id, filename)
+                    )
+                except Exception:
+                    # If both fail, raise the original error (likely file not found)
+                    pass
+            raise e
 
     def read_file(filename: str, as_text: bool = True) -> Union[str, bytes]:
         """
@@ -65,7 +89,7 @@ def create_workspace_tools(
             filename: Name of the file to read
             as_text: If True, decode as UTF-8 string. If False, return bytes.
         """
-        data = _run_async(workspace_service.download_file(session_id, filename))
+        data = _download_file_data(filename)
         if as_text:
             return data.decode("utf-8")
         return data
@@ -103,7 +127,7 @@ def create_workspace_tools(
         """
         from io import BytesIO
 
-        data = _run_async(workspace_service.download_file(session_id, filename))
+        data = _download_file_data(filename)
         return pd.read_csv(BytesIO(data), **kwargs)
 
     def read_excel(filename: str, **kwargs) -> pd.DataFrame:
@@ -116,7 +140,7 @@ def create_workspace_tools(
         """
         from io import BytesIO
 
-        data = _run_async(workspace_service.download_file(session_id, filename))
+        data = _download_file_data(filename)
         return pd.read_excel(BytesIO(data), **kwargs)
 
     def save_csv(df: pd.DataFrame, filename: str, **kwargs) -> str:

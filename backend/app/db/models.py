@@ -71,6 +71,7 @@ ARTIFACTS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS artifacts (
     artifact_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     session_id UUID REFERENCES sessions(session_id) ON DELETE CASCADE,
+    project_id UUID REFERENCES projects(project_id) ON DELETE CASCADE,
     message_id UUID REFERENCES messages(message_id) ON DELETE SET NULL,
     file_name VARCHAR(255) NOT NULL,
     file_type VARCHAR(50) NOT NULL,
@@ -78,10 +79,12 @@ CREATE TABLE IF NOT EXISTS artifacts (
     size_bytes BIGINT NOT NULL,
     minio_object_key VARCHAR(512) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    metadata JSONB DEFAULT '{}'::jsonb
+    metadata JSONB DEFAULT '{}'::jsonb,
+    CONSTRAINT artifacts_scope_check CHECK (project_id IS NOT NULL OR session_id IS NOT NULL)
 );
 
 CREATE INDEX IF NOT EXISTS idx_artifacts_session ON artifacts(session_id);
+CREATE INDEX IF NOT EXISTS idx_artifacts_project ON artifacts(project_id);
 CREATE INDEX IF NOT EXISTS idx_artifacts_message ON artifacts(message_id);
 CREATE INDEX IF NOT EXISTS idx_artifacts_type ON artifacts(file_type);
 """

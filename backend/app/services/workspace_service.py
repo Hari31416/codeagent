@@ -27,6 +27,10 @@ class WorkspaceService:
         """Get the MinIO prefix for a session's workspace."""
         return f"sessions/{session_id}/"
 
+    def get_project_workspace_prefix(self, project_id: UUID) -> str:
+        """Get the MinIO prefix for a project's shared workspace."""
+        return f"projects/{project_id}/"
+
     async def upload_file(
         self,
         session_id: UUID,
@@ -49,6 +53,28 @@ class WorkspaceService:
         )
         return object_key
 
+    async def upload_project_file(
+        self,
+        project_id: UUID,
+        file_name: str,
+        data: bytes | BinaryIO,
+        content_type: str = "application/octet-stream",
+    ) -> str:
+        """
+        Upload a file to the project's shared workspace.
+
+        Returns:
+            The MinIO object key
+        """
+        object_key = f"{self.get_project_workspace_prefix(project_id)}{file_name}"
+        self.storage.upload(object_key, data, content_type)
+        logger.info(
+            "file_uploaded_to_project_workspace",
+            project_id=str(project_id),
+            file_name=file_name,
+        )
+        return object_key
+
     async def download_file(
         self,
         session_id: UUID,
@@ -56,6 +82,15 @@ class WorkspaceService:
     ) -> bytes:
         """Download a file from the session workspace."""
         object_key = f"{self.get_workspace_prefix(session_id)}{file_name}"
+        return self.storage.download(object_key)
+
+    async def download_project_file(
+        self,
+        project_id: UUID,
+        file_name: str,
+    ) -> bytes:
+        """Download a file from the project's shared workspace."""
+        object_key = f"{self.get_project_workspace_prefix(project_id)}{file_name}"
         return self.storage.download(object_key)
 
     async def get_presigned_url(
@@ -72,12 +107,34 @@ class WorkspaceService:
             object_key, expires=timedelta(hours=expires_hours)
         )
 
+    async def get_project_presigned_url(
+        self,
+        project_id: UUID,
+        file_name: str,
+        expires_hours: int = 1,
+    ) -> str:
+        """Get a presigned URL for temporary file access from project workspace."""
+        from datetime import timedelta
+
+        object_key = f"{self.get_project_workspace_prefix(project_id)}{file_name}"
+        return self.storage.get_presigned_url(
+            object_key, expires=timedelta(hours=expires_hours)
+        )
+
     async def list_workspace_files(
         self,
         session_id: UUID,
     ) -> list[dict]:
         """List all files in a session's workspace."""
         prefix = self.get_workspace_prefix(session_id)
+        return self.storage.list_objects(prefix=prefix, recursive=True)
+
+    async def list_project_files(
+        self,
+        project_id: UUID,
+    ) -> list[dict]:
+        """List all files in a project's shared workspace."""
+        prefix = self.get_project_workspace_prefix(project_id)
         return self.storage.list_objects(prefix=prefix, recursive=True)
 
     async def delete_workspace(

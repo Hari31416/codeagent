@@ -15,7 +15,8 @@ export type ArtifactType =
 
 export interface Artifact {
   artifact_id: string
-  session_id: string
+  session_id?: string
+  project_id?: string
   file_name: string
   file_type: ArtifactType
   mime_type: string

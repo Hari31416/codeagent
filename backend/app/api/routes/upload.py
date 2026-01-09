@@ -120,3 +120,81 @@ async def upload_file(
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/projects/{project_id}/upload")
+async def upload_project_file(
+    project_id: UUID,
+    file: UploadFile = File(...),
+) -> JSONResponse:
+    """
+    Upload a file to a project's shared workspace.
+
+    1. Saves file to MinIO under projects/{project_id}/
+    2. Creates artifact record in PostgreSQL with project_id
+    3. Returns artifact_id and presigned URL
+    """
+    try:
+        # Read file content
+        content = await file.read()
+        file_name = file.filename or "untitled"
+        file_type = get_file_type(file_name)
+        mime_type = get_mime_type(file_type)
+
+        # Upload to MinIO
+        object_key = await workspace_service.upload_project_file(
+            project_id=project_id,
+            file_name=file_name,
+            data=content,
+            content_type=mime_type,
+        )
+
+        # Register in database
+        async with get_system_db() as conn:
+            artifact = await artifact_repo.create_artifact(
+                conn=conn,
+                project_id=project_id,
+                file_name=file_name,
+                file_type=file_type,
+                mime_type=mime_type,
+                size_bytes=len(content),
+                minio_object_key=object_key,
+            )
+
+        # Generate presigned URL for immediate access
+        presigned_url = await workspace_service.get_project_presigned_url(
+            project_id=project_id,
+            file_name=file_name,
+        )
+
+        logger.info(
+            "project_file_upload_complete",
+            project_id=str(project_id),
+            artifact_id=str(artifact["artifact_id"]),
+            file_name=file_name,
+            size_bytes=len(content),
+        )
+
+        return JSONResponse(
+            content={
+                "success": True,
+                "data": {
+                    "artifact_id": str(artifact["artifact_id"]),
+                    "file_name": file_name,
+                    "file_type": file_type,
+                    "size_bytes": len(content),
+                    "presigned_url": presigned_url,
+                },
+            },
+            status_code=201,
+        )
+
+    except Exception as e:
+        logger.error(
+            "project_file_upload_failed",
+            project_id=str(project_id),
+            file_name=file.filename,
+            error=str(e),
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail=str(e))

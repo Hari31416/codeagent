@@ -20,6 +20,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
+import { uploadProjectFile } from '@/api/projects'
+
 export function MainLayout() {
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null)
@@ -40,7 +42,7 @@ export function MainLayout() {
         createProject,
         deleteProject,
     } = useProjects()
-    const { artifacts, refresh: refreshArtifacts } = useArtifacts(currentSessionId || undefined)
+    const { artifacts, refresh: refreshArtifacts } = useArtifacts(currentSessionId || undefined, selectedProjectId || undefined)
 
     const handleNewProject = useCallback(() => {
         setIsProjectDialogOpen(true)
@@ -91,6 +93,16 @@ export function MainLayout() {
             handleArtifactSelect(artifactId)
         }
     }, [handleArtifactSelect])
+
+    const handleUploadProjectFile = useCallback(async (file: File) => {
+        if (!selectedProjectId) return
+        try {
+            await uploadProjectFile(selectedProjectId, file)
+            refreshArtifacts()
+        } catch (error) {
+            console.error("Failed to upload project file", error)
+        }
+    }, [selectedProjectId, refreshArtifacts])
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -210,6 +222,8 @@ export function MainLayout() {
                         selectedArtifactId={selectedArtifact?.artifact_id ?? null}
                         onArtifactSelect={handleSidebarArtifactSelect}
                         onToggle={setIsArtifactsOpen}
+                        projectId={selectedProjectId || undefined}
+                        onUploadProjectFile={handleUploadProjectFile}
                     />
                 </div>
             </div>
