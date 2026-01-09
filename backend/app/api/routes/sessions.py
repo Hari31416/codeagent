@@ -24,6 +24,7 @@ class CreateSessionRequest(BaseModel):
     """Request model for creating a session."""
 
     user_id: UUID
+    project_id: UUID
     name: str | None = None
 
 
@@ -44,6 +45,7 @@ async def create_session(request: CreateSessionRequest):
         session = await session_repo.create_session(
             conn=conn,
             user_id=request.user_id,
+            project_id=request.project_id,
             name=request.name,
         )
 
@@ -54,6 +56,7 @@ async def create_session(request: CreateSessionRequest):
         "data": {
             "session_id": str(session["session_id"]),
             "user_id": str(session["user_id"]),
+            "project_id": str(session["project_id"]),
             "workspace_prefix": session["workspace_prefix"],
             "name": session["name"],
             "created_at": session["created_at"].isoformat(),
@@ -75,6 +78,7 @@ async def get_session(session_id: UUID):
         "data": {
             "session_id": str(session["session_id"]),
             "user_id": str(session["user_id"]),
+            "project_id": str(session["project_id"]),
             "workspace_prefix": session["workspace_prefix"],
             "name": session["name"],
             "created_at": session["created_at"].isoformat(),
@@ -254,14 +258,18 @@ async def get_session_artifacts(session_id: UUID):
 @router.get("")
 async def list_sessions(
     user_id: UUID = Query(..., description="User ID to filter sessions"),
+    project_id: UUID | None = Query(
+        None, description="Optional project ID to filter sessions"
+    ),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
-    """List sessions for a user."""
+    """List sessions for a user, optionally filtered by project."""
     async with get_system_db() as conn:
         sessions = await session_repo.list_sessions_by_user(
             conn=conn,
             user_id=user_id,
+            project_id=project_id,
             limit=limit,
             offset=offset,
         )
@@ -271,6 +279,7 @@ async def list_sessions(
         "data": [
             {
                 "session_id": str(s["session_id"]),
+                "project_id": str(s["project_id"]),
                 "name": s["name"],
                 "created_at": s["created_at"].isoformat(),
                 "updated_at": s["updated_at"].isoformat(),

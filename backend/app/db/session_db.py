@@ -12,6 +12,155 @@ from asyncpg import Connection
 logger = get_logger(__name__)
 
 
+class ProjectRepository:
+    """Repository for project CRUD operations."""
+
+    async def ensure_user_exists(
+        self,
+        conn: Connection,
+        user_id: UUID,
+    ) -> None:
+        """Ensure user exists in the database."""
+        await conn.execute(
+            """
+            INSERT INTO users (user_id, email, full_name)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (user_id) DO NOTHING
+            """,
+            user_id,
+            f"{user_id}@anonymous.codeagent",
+            "Anonymous User",
+        )
+
+    async def create_project(
+        self,
+        conn: Connection,
+        user_id: UUID,
+        name: str,
+        description: str | None = None,
+    ) -> dict[str, Any]:
+        """Create a new project."""
+        await self.ensure_user_exists(conn, user_id)
+
+        row = await conn.fetchrow(
+            """
+            INSERT INTO projects (user_id, name, description)
+            VALUES ($1, $2, $3)
+            RETURNING project_id, user_id, name, description, created_at, updated_at, metadata
+            """,
+            user_id,
+            name,
+            description,
+        )
+
+        logger.info(
+            "project_created",
+            project_id=str(row["project_id"]),
+            user_id=str(user_id),
+        )
+
+        return dict(row)
+
+    async def get_project(
+        self,
+        conn: Connection,
+        project_id: UUID,
+    ) -> dict[str, Any] | None:
+        """Get project by ID."""
+        row = await conn.fetchrow(
+            """
+            SELECT project_id, user_id, name, description, created_at, updated_at, metadata
+            FROM projects
+            WHERE project_id = $1
+            """,
+            project_id,
+        )
+        return dict(row) if row else None
+
+    async def update_project(
+        self,
+        conn: Connection,
+        project_id: UUID,
+        name: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
+        """Update project metadata."""
+        import json
+
+        updates = []
+        params = [project_id]
+        param_idx = 2
+
+        if name is not None:
+            updates.append(f"name = ${param_idx}")
+            params.append(name)
+            param_idx += 1
+
+        if description is not None:
+            updates.append(f"description = ${param_idx}")
+            params.append(description)
+            param_idx += 1
+
+        if metadata is not None:
+            updates.append(f"metadata = ${param_idx}")
+            params.append(json.dumps(metadata))
+            param_idx += 1
+
+        if not updates:
+            return await self.get_project(conn, project_id)
+
+        updates.append("updated_at = NOW()")
+        query = f"""
+            UPDATE projects
+            SET {', '.join(updates)}
+            WHERE project_id = $1
+            RETURNING project_id, user_id, name, description, created_at, updated_at, metadata
+        """
+
+        row = await conn.fetchrow(query, *params)
+        return dict(row) if row else None
+
+    async def list_projects_by_user(
+        self,
+        conn: Connection,
+        user_id: UUID,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """List projects for a user."""
+        await self.ensure_user_exists(conn, user_id)
+
+        rows = await conn.fetch(
+            """
+            SELECT project_id, user_id, name, description, created_at, updated_at, metadata
+            FROM projects
+            WHERE user_id = $1
+            ORDER BY updated_at DESC
+            LIMIT $2 OFFSET $3
+            """,
+            user_id,
+            limit,
+            offset,
+        )
+        return [dict(row) for row in rows]
+
+    async def delete_project(
+        self,
+        conn: Connection,
+        project_id: UUID,
+    ) -> bool:
+        """Delete a project (cascades to sessions, artifacts, and messages)."""
+        result = await conn.execute(
+            "DELETE FROM projects WHERE project_id = $1",
+            project_id,
+        )
+        deleted = result.split()[-1] == "1"
+        if deleted:
+            logger.info("project_deleted", project_id=str(project_id))
+        return deleted
+
+
 class SessionRepository:
     """Repository for session CRUD operations."""
 
@@ -36,6 +185,7 @@ class SessionRepository:
         self,
         conn: Connection,
         user_id: UUID,
+        project_id: UUID,
         name: str | None = None,
     ) -> dict[str, Any]:
         """Create a new session with workspace prefix."""
@@ -43,17 +193,18 @@ class SessionRepository:
 
         row = await conn.fetchrow(
             """
-            INSERT INTO sessions (user_id, workspace_prefix, name)
-            VALUES ($1, $2, $3)
-            RETURNING session_id, user_id, workspace_prefix, name, created_at, updated_at, metadata
+            INSERT INTO sessions (user_id, project_id, workspace_prefix, name)
+            VALUES ($1, $2, $3, $4)
+            RETURNING session_id, user_id, project_id, workspace_prefix, name, created_at, updated_at, metadata
             """,
             user_id,
+            project_id,
             "",  # Will be updated after getting session_id
             name or "Untitled Session",
         )
 
         session_id = row["session_id"]
-        workspace_prefix = f"sessions/{session_id}/"
+        workspace_prefix = f"projects/{project_id}/sessions/{session_id}/"
 
         # Update with correct workspace_prefix
         row = await conn.fetchrow(
@@ -61,7 +212,7 @@ class SessionRepository:
             UPDATE sessions
             SET workspace_prefix = $1
             WHERE session_id = $2
-            RETURNING session_id, user_id, workspace_prefix, name, created_at, updated_at, metadata
+            RETURNING session_id, user_id, project_id, workspace_prefix, name, created_at, updated_at, metadata
             """,
             workspace_prefix,
             session_id,
@@ -70,6 +221,7 @@ class SessionRepository:
         logger.info(
             "session_created",
             session_id=str(session_id),
+            project_id=str(project_id),
             user_id=str(user_id),
         )
 
@@ -83,7 +235,7 @@ class SessionRepository:
         """Get session by ID."""
         row = await conn.fetchrow(
             """
-            SELECT session_id, user_id, workspace_prefix, name, created_at, updated_at, metadata
+            SELECT session_id, user_id, project_id, workspace_prefix, name, created_at, updated_at, metadata
             FROM sessions
             WHERE session_id = $1
             """,
@@ -123,7 +275,7 @@ class SessionRepository:
             UPDATE sessions
             SET {', '.join(updates)}
             WHERE session_id = $1
-            RETURNING session_id, user_id, workspace_prefix, name, created_at, updated_at, metadata
+            RETURNING session_id, user_id, project_id, workspace_prefix, name, created_at, updated_at, metadata
         """
 
         row = await conn.fetchrow(query, *params)
@@ -133,21 +285,59 @@ class SessionRepository:
         self,
         conn: Connection,
         user_id: UUID,
+        project_id: UUID | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> list[dict[str, Any]]:
-        """List sessions for a user."""
+        """List sessions for a user, optionally filtered by project."""
         await self.ensure_user_exists(conn, user_id)
 
+        if project_id:
+            rows = await conn.fetch(
+                """
+                SELECT session_id, user_id, project_id, workspace_prefix, name, created_at, updated_at, metadata
+                FROM sessions
+                WHERE user_id = $1 AND project_id = $2
+                ORDER BY updated_at DESC
+                LIMIT $3 OFFSET $4
+                """,
+                user_id,
+                project_id,
+                limit,
+                offset,
+            )
+        else:
+            rows = await conn.fetch(
+                """
+                SELECT session_id, user_id, project_id, workspace_prefix, name, created_at, updated_at, metadata
+                FROM sessions
+                WHERE user_id = $1
+                ORDER BY updated_at DESC
+                LIMIT $2 OFFSET $3
+                """,
+                user_id,
+                limit,
+                offset,
+            )
+        return [dict(row) for row in rows]
+
+    async def list_sessions_by_project(
+        self,
+        conn: Connection,
+        project_id: UUID,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """List sessions for a specific project."""
         rows = await conn.fetch(
             """
-            SELECT session_id, user_id, workspace_prefix, name, created_at, updated_at, metadata
+            SELECT session_id, user_id, project_id, workspace_prefix, name, created_at, updated_at, metadata
             FROM sessions
-            WHERE user_id = $1
+            WHERE project_id = $1
             ORDER BY updated_at DESC
             LIMIT $2 OFFSET $3
             """,
-            user_id,
+            project_id,
             limit,
             offset,
         )

@@ -30,13 +30,14 @@ export function useSession(sessionId?: string) {
     loadSession()
   }, [loadSession])
 
-  const createSession = useCallback(async (name?: string) => {
+  const createSession = useCallback(async (projectId: string, name?: string) => {
     setLoading(true)
     try {
       const userId = getUserId()
       const response = await sessionApi.createSession({
         name,
-        user_id: userId
+        user_id: userId,
+        project_id: projectId,
       })
       if (response.success && response.data) {
         setSession(response.data)

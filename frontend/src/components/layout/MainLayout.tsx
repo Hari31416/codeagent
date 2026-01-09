@@ -1,37 +1,83 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useSession } from '@/hooks/useSession'
+import { useProjects } from '@/hooks/useProjects'
 import { useArtifacts } from '@/hooks/useArtifacts'
 import { ChatContainer } from '@/components/chat/ChatContainer'
-import { SessionSidebar } from '@/components/session/SessionSidebar'
+import { ProjectSidebar } from '@/components/project/ProjectSidebar'
 import { ArtifactsSidebar } from '@/components/artifacts/ArtifactsSidebar'
 import type { Artifact } from '@/types/artifact'
 import { Button } from '@/components/ui/button'
 import { PanelLeft, PanelRight, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 export function MainLayout() {
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null)
     const [isSidebarOpen, setIsSidebarOpen] = useState(true)
     const [isArtifactsOpen, setIsArtifactsOpen] = useState(true)
-
     const [lastUpdated, setLastUpdated] = useState(Date.now())
 
+    // Project creation dialog state
+    const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false)
+    const [newProjectName, setNewProjectName] = useState('')
+    const [newProjectDescription, setNewProjectDescription] = useState('')
+
     const { createSession } = useSession(currentSessionId || undefined)
+    const {
+        projects,
+        selectedProjectId,
+        selectProject,
+        createProject,
+        deleteProject,
+    } = useProjects()
     const { artifacts, refresh: refreshArtifacts } = useArtifacts(currentSessionId || undefined)
 
-    const handleNewSession = useCallback(async () => {
-        const newSession = await createSession()
+    const handleNewProject = useCallback(() => {
+        setIsProjectDialogOpen(true)
+    }, [])
+
+    const handleCreateProject = useCallback(async () => {
+        if (!newProjectName.trim()) return
+
+        const project = await createProject(newProjectName.trim(), newProjectDescription.trim() || undefined)
+        if (project) {
+            selectProject(project.project_id)
+            setIsProjectDialogOpen(false)
+            setNewProjectName('')
+            setNewProjectDescription('')
+        }
+    }, [newProjectName, newProjectDescription, createProject, selectProject])
+
+    const handleNewSession = useCallback(async (projectId: string) => {
+        const newSession = await createSession(projectId)
         if (newSession) {
             setCurrentSessionId(newSession.session_id)
             setSelectedArtifact(null)
-            if (!isSidebarOpen) setIsSidebarOpen(true)
+            setLastUpdated(Date.now())
         }
-    }, [createSession, isSidebarOpen])
+    }, [createSession])
+
+    const handleProjectSelect = useCallback((projectId: string) => {
+        selectProject(projectId)
+    }, [selectProject])
+
+    const handleSessionSelect = useCallback((sessionId: string) => {
+        setCurrentSessionId(sessionId)
+        setSelectedArtifact(null)
+    }, [])
 
     const handleArtifactSelect = useCallback((artifactId: string) => {
         const artifact = artifacts.find(a => a.artifact_id === artifactId)
-
         if (artifact) {
             setSelectedArtifact(artifact)
             if (!isArtifactsOpen) setIsArtifactsOpen(true)
@@ -64,16 +110,21 @@ export function MainLayout() {
 
     return (
         <div className="flex h-screen bg-background overflow-hidden">
-            {/* Sidebar */}
+            {/* Project Sidebar */}
             <div className={cn(
                 "transition-all duration-300 ease-in-out overflow-hidden bg-muted/30 flex flex-col",
-                isSidebarOpen ? "w-[260px] border-r" : "w-0 border-none"
+                isSidebarOpen ? "w-[280px] border-r" : "w-0 border-none"
             )}>
-                <div className="w-[260px] h-full">
-                    <SessionSidebar
+                <div className="w-[280px] h-full">
+                    <ProjectSidebar
+                        projects={projects}
+                        selectedProjectId={selectedProjectId}
                         currentSessionId={currentSessionId}
-                        onSessionSelect={setCurrentSessionId}
+                        onProjectSelect={handleProjectSelect}
+                        onSessionSelect={handleSessionSelect}
+                        onNewProject={handleNewProject}
                         onNewSession={handleNewSession}
+                        onDeleteProject={deleteProject}
                         lastUpdated={lastUpdated}
                     />
                 </div>
@@ -95,13 +146,13 @@ export function MainLayout() {
                         <Button
                             variant="ghost"
                             size="icon"
-                            onClick={handleNewSession}
-                            title="New Session"
+                            onClick={handleNewProject}
+                            title="New Project"
                         >
                             <Plus className="h-4 w-4" />
                         </Button>
                         <span className="font-medium text-sm text-muted-foreground ml-2">
-                            {currentSessionId ? "Chat Session" : "New Chat"}
+                            {currentSessionId ? "Chat Session" : "Select or Create Project"}
                         </span>
                     </div>
 
@@ -140,10 +191,12 @@ export function MainLayout() {
                                         Welcome to AI Data Analyst
                                     </h2>
                                     <p className="mb-4">
-                                        Create a new session to start analyzing your data
+                                            {projects.length === 0
+                                                ? 'Create a project to get started'
+                                                : 'Select a project and create a session to start analyzing'}
                                     </p>
-                                    <Button onClick={handleNewSession}>
-                                        New Session
+                                        <Button onClick={handleNewProject}>
+                                            New Project
                                     </Button>
                                 </div>
                             </div>
@@ -160,6 +213,61 @@ export function MainLayout() {
                     />
                 </div>
             </div>
+
+            {/* Project Creation Dialog */}
+            <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Create New Project</DialogTitle>
+                        <DialogDescription>
+                            Projects help you organize related sessions and files together.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="project-name">Project Name *</Label>
+                            <Input
+                                id="project-name"
+                                placeholder="My Data Analysis Project"
+                                value={newProjectName}
+                                onChange={(e) => setNewProjectName(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && newProjectName.trim()) {
+                                        handleCreateProject()
+                                    }
+                                }}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="project-description">Description (Optional)</Label>
+                            <Input
+                                id="project-description"
+                                placeholder="Brief description of this project"
+                                value={newProjectDescription}
+                                onChange={(e) => setNewProjectDescription(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setIsProjectDialogOpen(false)
+                                setNewProjectName('')
+                                setNewProjectDescription('')
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleCreateProject}
+                            disabled={!newProjectName.trim()}
+                        >
+                            Create Project
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

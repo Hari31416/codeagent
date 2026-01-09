@@ -82,8 +82,6 @@ export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: Use
     try {
       let iterations: import('@/types/api').IterationOutput[] = []
       let assistantContent = ''
-      let assistantCode: string | undefined
-      let assistantThoughts: string | undefined
       let artifactIds: string[] = []
       let assistantArtifacts: Array<{
         artifact_id: string

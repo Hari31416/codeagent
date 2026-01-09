@@ -11,6 +11,7 @@ import sys
 from app.db.models import (
     ARTIFACTS_TABLE_SQL,
     MESSAGES_TABLE_SQL,
+    PROJECTS_TABLE_SQL,
     SESSIONS_TABLE_SQL,
     USERS_TABLE_SQL,
 )
@@ -31,6 +32,10 @@ async def init_database():
             # Create users table
             logger.info("Creating users table")
             await conn.execute(USERS_TABLE_SQL)
+
+            # Create projects table (must come before sessions due to FK)
+            logger.info("Creating projects table")
+            await conn.execute(PROJECTS_TABLE_SQL)
 
             # Create sessions table
             logger.info("Creating sessions table")

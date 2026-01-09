@@ -23,8 +23,15 @@ export async function updateSession(
   })
 }
 
-export async function getSessions(userId: string): Promise<SessionListResponse> {
-  return apiRequest(`/sessions?user_id=${userId}`)
+export async function getSessions(
+  userId: string,
+  projectId?: string
+): Promise<SessionListResponse> {
+  let url = `/sessions?user_id=${userId}`
+  if (projectId) {
+    url += `&project_id=${projectId}`
+  }
+  return apiRequest(url)
 }
 
 export async function getSession(sessionId: string): Promise<ApiResponse<Session>> {

@@ -18,10 +18,25 @@ CREATE TABLE IF NOT EXISTS users (
 );
 """
 
+PROJECTS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS projects (
+    project_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(user_id),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    metadata JSONB DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
+"""
+
 SESSIONS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS sessions (
     session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(user_id),
+    project_id UUID REFERENCES projects(project_id) ON DELETE CASCADE NOT NULL,
     workspace_prefix VARCHAR(255) NOT NULL,
     name VARCHAR(255),
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -30,6 +45,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_project_id ON sessions(project_id);
 """
 
 MESSAGES_TABLE_SQL = """
