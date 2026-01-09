@@ -44,6 +44,36 @@ class StreamEvent(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class TypedDataKind(str, Enum):
+    """Kinds of typed data that need special frontend rendering."""
+
+    TEXT = "text"
+    TABLE = "table"
+    IMAGE = "image"
+    PLOTLY = "plotly"
+    JSON = "json"
+
+
+class TypedData(BaseModel):
+    """Data with type metadata for frontend rendering."""
+
+    kind: TypedDataKind
+    data: Any
+    metadata: dict[str, Any] | None = None
+
+
+class IterationOutput(BaseModel):
+    """Standard output for each ReAct iteration."""
+
+    iteration: int
+    thought: str | None = None
+    code: str | None = None
+    execution_logs: str | None = None
+    output: TypedData | None = None
+    success: bool = True
+    error: str | None = None
+
+
 class CancellationToken:
     """
     Cooperative cancellation token for async operations.

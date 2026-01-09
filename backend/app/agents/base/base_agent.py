@@ -474,6 +474,7 @@ class CodingAgent(BaseAgent):
                     final_result = output_val
 
                     # Yield: Iteration complete
+                    # Yield: Iteration complete
                     yield self._create_status(
                         AgentStatusType.ITERATION_COMPLETE,
                         f"Iteration {current_iter}: Code executed successfully",
@@ -482,7 +483,10 @@ class CodingAgent(BaseAgent):
                         data={
                             "success": True,
                             "final_answer": final_answer,
-                            "output": output_str,  # Use string/markdown for visibility in trace
+                            "output": output_val,  # Pass raw output for TypedData serialization
+                            "thought": thoughts,
+                            "code": code,
+                            "execution_logs": logs_str,
                         },
                     )
 
@@ -526,6 +530,7 @@ class CodingAgent(BaseAgent):
                     observations.append(observation)
 
                     # Yield: Iteration complete with error
+                    # Yield: Iteration complete with error
                     yield self._create_status(
                         AgentStatusType.ITERATION_COMPLETE,
                         f"Iteration {current_iter}: Execution failed, will retry",
@@ -534,6 +539,9 @@ class CodingAgent(BaseAgent):
                         data={
                             "success": False,
                             "error": execution_result["error"][:200],
+                            "thought": thoughts,
+                            "code": code,
+                            "execution_logs": logs_str,
                         },
                     )
 

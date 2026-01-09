@@ -17,7 +17,12 @@ from app.services.workspace_service import WorkspaceService
 from app.services.workspace_tools import create_workspace_tools
 from app.shared.logging import get_logger
 from app.shared.models import AgentStatus, AgentStatusType
-from app.shared.stream_models import StreamEvent, StreamEventType
+from app.shared.stream_models import (
+    StreamEvent,
+    StreamEventType,
+    TypedData,
+    TypedDataKind,
+)
 
 logger = get_logger(__name__)
 
@@ -300,8 +305,32 @@ class AgentOrchestrator:
             AgentStatusType.ERROR: StreamEventType.ERROR,
         }
 
-        # Serialize data to ensure it's JSON-safe (e.g., handle DataFrames)
-        serialized_data = self._serialize_data(status.data)
+        event_type = event_type_map.get(status.status_type, StreamEventType.THINKING)
+
+        # Serialize data
+        serialized_data = None
+        if status.data:
+            # If it's an iteration complete event, we want to structure it as IterationOutput
+            if status.status_type == AgentStatusType.ITERATION_COMPLETE:
+                # The data from base agent currently has {success, output, final_answer, etc}
+                # We need to ensure 'output' is typed
+                raw_output = status.data.get("output")
+                typed_output = self._serialize_to_typed_data(raw_output)
+
+                # Copy other fields
+                serialized_data = {
+                    "iteration": status.iteration,
+                    "thought": status.data.get("thought"),
+                    "code": status.data.get("code"),
+                    "execution_logs": status.data.get("execution_logs"),
+                    "output": typed_output,
+                    "success": status.data.get("success", False),
+                    "error": status.data.get("error"),
+                    "final_answer": status.data.get("final_answer", False),
+                }
+            else:
+                # For other events, use legacy serialization or pass through if simple
+                serialized_data = self._serialize_data(status.data)
 
         return StreamEvent(
             type=(
@@ -309,13 +338,122 @@ class AgentOrchestrator:
                 if status.status_type != AgentStatusType.COMPLETED
                 else "completed"
             ),
-            event_type=event_type_map.get(status.status_type, StreamEventType.THINKING),
+            event_type=event_type,
             agent_name="data_analysis",
             message=status.message,
             data=serialized_data,
             iteration=status.iteration,
             total_iterations=status.total_iterations,
         )
+
+    def _serialize_to_typed_data(self, data: Any) -> dict | None:
+        """
+        Serialize data to TypedData format for frontend rendering.
+
+        Wraps raw data with type metadata (kind=table, image, etc).
+        """
+        if data is None:
+            return None
+
+        # Return if already serialized as typed data
+        if isinstance(data, dict) and "kind" in data and "data" in data:
+            return data
+
+        # Handle Pandas DataFrames -> Table
+        if isinstance(data, pd.DataFrame):
+            # Limit rows for performance if needed, but for now send full
+            # Frontend handles pagination/rendering
+            return {
+                "kind": TypedDataKind.TABLE,
+                "data": {
+                    "headers": list(data.columns),
+                    "rows": data.fillna("").values.tolist(),
+                },
+                "metadata": {
+                    "rows": len(data),
+                    "columns": len(data.columns),
+                    "dtypes": {str(k): str(v) for k, v in data.dtypes.items()},
+                },
+            }
+
+        # Handle Matplotlib Figure (from legacy internal state or fresh)
+        if hasattr(data, "savefig") or (
+            isinstance(data, dict)
+            and data.get("type") == "matplotlib_figure"
+            and "data" in data
+        ):
+            # If it's already our dict format
+            if isinstance(data, dict):
+                return {
+                    "kind": TypedDataKind.IMAGE,
+                    "data": data["data"],  # base64 string
+                    "metadata": {"format": "png"},
+                }
+
+            # If it's a live figure object (should be caught by agent before here, but safety)
+            # This part mirrors base_agent logic but wraps in TypedData
+            try:
+                import base64
+
+                buf = BytesIO()
+                data.savefig(buf, format="png", bbox_inches="tight")
+                buf.seek(0)
+                img_base64 = base64.b64encode(buf.read()).decode("utf-8")
+                buf.close()
+                return {
+                    "kind": TypedDataKind.IMAGE,
+                    "data": img_base64,
+                    "metadata": {"format": "png"},
+                }
+            except Exception:
+                pass
+
+        # Handle Plotly Figure
+        if hasattr(data, "to_json") or (
+            isinstance(data, dict) and data.get("type") == "plotly_figure"
+        ):
+            if isinstance(data, dict):
+                return {
+                    "kind": TypedDataKind.PLOTLY,
+                    "data": data["data"],
+                    "metadata": {},
+                }
+
+            # If live object
+            try:
+                import json
+
+                return {
+                    "kind": TypedDataKind.PLOTLY,
+                    "data": json.loads(data.to_json()),
+                    "metadata": {},
+                }
+            except Exception:
+                pass
+
+        # Handle basic types -> Text
+        if isinstance(data, (str, int, float, bool)):
+            return {
+                "kind": TypedDataKind.TEXT,
+                "data": str(data),
+                "metadata": {},
+            }
+
+        # Handle dict/list -> JSON
+        if isinstance(data, (dict, list)):
+            # Recursively serialize contents if needed, but for JSON view just dump
+            return {
+                "kind": TypedDataKind.JSON,
+                "data": self._serialize_data(data),  # Use existing recursive cleaner
+                "metadata": {},
+            }
+
+        # Fallback -> Text
+        return {
+            "kind": TypedDataKind.TEXT,
+            "data": str(data),
+            "metadata": {"original_type": type(data).__name__},
+        }
 
     def _serialize_data(self, data: Any) -> Any:
         """
@@ -348,6 +486,7 @@ class AgentOrchestrator:
         # DataFrames/Series must be caught before other checks
         if type_name == "DataFrame" or isinstance(data, pd.DataFrame):
             try:
+                # Kept for backward compatibility but wrapped in TypedData usually preferable
                 return data.to_dict(orient="records")
             except Exception:
                 return str(data)

@@ -12,6 +12,7 @@ export interface Message {
   is_error: boolean
   created_at: string
   metadata: Record<string, unknown>
+  iterations?: import('./api').IterationOutput[]
 }
 
 export interface ChatHistory {

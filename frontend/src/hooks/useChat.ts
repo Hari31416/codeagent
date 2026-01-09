@@ -52,7 +52,24 @@ export function useChat({ sessionId, onArtifactsCreated }: UseChatOptions) {
     setError(null)
     setState(prev => ({ ...prev, status: 'started' }))
 
+    const assistantMessageId = crypto.randomUUID()
+    const assistantMessageCreatedAt = new Date().toISOString()
+
+    // Create initial empty assistant message
+    setMessages(prev => [...prev, {
+      message_id: assistantMessageId,
+      session_id: sessionId,
+      role: 'assistant',
+      content: '', // Start empty
+      artifact_ids: [],
+      iterations: [],
+      is_error: false,
+      created_at: assistantMessageCreatedAt,
+      metadata: {},
+    }])
+
     try {
+      let iterations: import('@/types/api').IterationOutput[] = []
       let assistantContent = ''
       let assistantCode: string | undefined
       let assistantThoughts: string | undefined
@@ -82,6 +99,28 @@ export function useChat({ sessionId, onArtifactsCreated }: UseChatOptions) {
             : prev.currentCode,
         }))
 
+        // Handle iteration completion
+        if (event.event_type === 'iteration_complete' && event.data) {
+          // Add to local list
+          const newIteration = {
+            iteration: event.iteration || 0,
+            thought: event.data.thought as string,
+            code: event.data.code as string,
+            execution_logs: event.data.execution_logs as string,
+            output: event.data.output as any, // TypedData
+            success: event.data.success as boolean,
+            error: event.data.error as string,
+          }
+          iterations.push(newIteration)
+
+          // Update message in state immediately
+          setMessages(prev => prev.map(msg =>
+            msg.message_id === assistantMessageId
+              ? { ...msg, iterations: [...iterations] }
+              : msg
+          ))
+        }
+
         // Handle completion
         if (event.type === 'completed' && event.data) {
           // Extract result - backend sends serialized result directly
@@ -109,28 +148,6 @@ export function useChat({ sessionId, onArtifactsCreated }: UseChatOptions) {
             assistantContent = event.message || 'Analysis complete.'
           }
 
-          // Extract code and thoughts from code_history if available
-          const codeHistory = event.data.code_history as Array<{
-            code?: string
-            thoughts?: string
-            output?: unknown // Changed from string to unknown
-          }> | undefined
-
-          if (codeHistory && codeHistory.length > 0) {
-            const lastEntry = codeHistory[codeHistory.length - 1]
-            assistantCode = lastEntry.code
-            assistantThoughts = lastEntry.thoughts
-
-            // If we have output from the last execution, use that as content
-            if (lastEntry.output && lastEntry.output !== 'No return value') {
-              if (typeof lastEntry.output === 'string') {
-                assistantContent = lastEntry.output
-              } else {
-                assistantContent = JSON.stringify(lastEntry.output, null, 2)
-              }
-            }
-          }
-
           // Extract artifacts if available
           assistantArtifacts = event.data.artifacts as Array<{
             artifact_id: string
@@ -144,6 +161,21 @@ export function useChat({ sessionId, onArtifactsCreated }: UseChatOptions) {
           if (artifactIds.length > 0 && onArtifactsCreated) {
             onArtifactsCreated(artifactIds)
           }
+
+          // Final update to message
+          setMessages(prev => prev.map(msg =>
+            msg.message_id === assistantMessageId
+              ? {
+                ...msg,
+                content: assistantContent,
+                artifact_ids: artifactIds,
+                metadata: {
+                  ...msg.metadata,
+                  artifacts: assistantArtifacts
+                }
+              }
+              : msg
+          ))
         }
 
         // Handle errors
@@ -152,24 +184,6 @@ export function useChat({ sessionId, onArtifactsCreated }: UseChatOptions) {
         }
       }
 
-      // Add assistant message
-      const assistantMessage: Message = {
-        message_id: crypto.randomUUID(),
-        session_id: sessionId,
-        role: 'assistant',
-        content: assistantContent,
-        code: assistantCode,
-        thoughts: assistantThoughts,
-        artifact_ids: artifactIds,
-        is_error: false,
-        created_at: new Date().toISOString(),
-        metadata: {
-          // Store artifact details with URLs in metadata for immediate display
-          artifacts: assistantArtifacts
-        },
-      }
-
-      setMessages(prev => [...prev, assistantMessage])
       setState({
         status: 'idle',
         currentThought: null,
@@ -182,17 +196,27 @@ export function useChat({ sessionId, onArtifactsCreated }: UseChatOptions) {
       setError(e as Error)
       setState(prev => ({ ...prev, status: 'error' }))
 
-      // Add error message
-      setMessages(prev => [...prev, {
-        message_id: crypto.randomUUID(),
-        session_id: sessionId,
-        role: 'assistant',
-        content: (e as Error).message,
-        artifact_ids: [],
-        is_error: true,
-        created_at: new Date().toISOString(),
-        metadata: {},
-      }])
+      // Update the assistant message to show error state if it exists, or add new one
+      setMessages(prev => {
+        const exists = prev.some(m => m.message_id === assistantMessageId)
+        if (exists) {
+          return prev.map(msg =>
+            msg.message_id === assistantMessageId
+              ? { ...msg, is_error: true, content: (e as Error).message || msg.content }
+              : msg
+          )
+        }
+        return [...prev, {
+          message_id: crypto.randomUUID(),
+          session_id: sessionId,
+          role: 'assistant',
+          content: (e as Error).message,
+          artifact_ids: [],
+          is_error: true,
+          created_at: new Date().toISOString(),
+          metadata: {},
+        }]
+      })
     }
   }, [sessionId, onArtifactsCreated])
 

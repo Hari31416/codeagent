@@ -3,6 +3,9 @@ import { Button } from '@/components/ui/button'
 import { Check, Copy } from 'lucide-react'
 import { useState, useCallback } from 'react'
 
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+
 interface CodeViewerProps {
   code: string
   language?: string
@@ -18,9 +21,9 @@ export function CodeViewer({ code, language = 'python' }: CodeViewerProps) {
   }, [code])
 
   return (
-    <Card className="relative">
-      <div className="flex items-center justify-between px-4 py-2 border-b bg-muted">
-        <span className="text-xs font-mono text-muted-foreground">
+    <Card className="relative overflow-hidden border">
+      <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/50">
+        <span className="text-xs font-medium text-muted-foreground uppercase">
           {language}
         </span>
         <Button
@@ -36,9 +39,17 @@ export function CodeViewer({ code, language = 'python' }: CodeViewerProps) {
           )}
         </Button>
       </div>
-      <pre className="p-4 overflow-auto max-h-[400px] text-sm">
-        <code className="font-mono">{code}</code>
-      </pre>
+      <div className="max-h-[400px] overflow-auto text-sm bg-zinc-50 dark:bg-zinc-950">
+        <SyntaxHighlighter
+          language={language.toLowerCase()}
+          style={oneLight}
+          customStyle={{ margin: 0, padding: '1rem', background: 'transparent' }}
+          wrapLines={true}
+          wrapLongLines={true}
+        >
+          {code}
+        </SyntaxHighlighter>
+      </div>
     </Card>
   )
 }

@@ -191,20 +191,48 @@ async def get_session_artifacts(session_id: UUID):
             conn, session_id=session_id
         )
 
+    # Generate presigned URLs for each artifact
+    # This was the bug: previously it only returned metadata
+    result = []
+    for a in artifacts:
+        try:
+            url = await workspace_service.get_presigned_url(
+                session_id=session_id,
+                file_name=a["file_name"],
+            )
+            result.append(
+                {
+                    "artifact_id": str(a["artifact_id"]),
+                    "file_name": a["file_name"],
+                    "file_type": a["file_type"],
+                    "mime_type": a["mime_type"],
+                    "size_bytes": a["size_bytes"],
+                    "created_at": a["created_at"].isoformat(),
+                    "presigned_url": url,
+                }
+            )
+        except Exception as e:
+            logger.warning(
+                "failed_to_generate_presigned_url",
+                artifact_id=str(a["artifact_id"]),
+                error=str(e),
+            )
+            # Add without URL if generation fails
+            result.append(
+                {
+                    "artifact_id": str(a["artifact_id"]),
+                    "file_name": a["file_name"],
+                    "file_type": a["file_type"],
+                    "mime_type": a["mime_type"],
+                    "size_bytes": a["size_bytes"],
+                    "created_at": a["created_at"].isoformat(),
+                }
+            )
+
     return {
         "success": True,
-        "data": [
-            {
-                "artifact_id": str(a["artifact_id"]),
-                "file_name": a["file_name"],
-                "file_type": a["file_type"],
-                "mime_type": a["mime_type"],
-                "size_bytes": a["size_bytes"],
-                "created_at": a["created_at"].isoformat(),
-            }
-            for a in artifacts
-        ],
-        "total": len(artifacts),
+        "data": result,
+        "total": len(result),
     }
 
 

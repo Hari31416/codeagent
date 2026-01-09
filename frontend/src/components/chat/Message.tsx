@@ -3,7 +3,8 @@ import type { Message as MessageType } from '@/types/message'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { CodeViewer } from '@/components/artifacts/CodeViewer'
-import { User, Bot, AlertCircle } from 'lucide-react'
+import { User, Bot } from 'lucide-react'
+import { TypedDataRenderer } from '@/components/artifacts/TypedDataRenderer'
 
 interface MessageProps {
   message: MessageType
@@ -13,7 +14,6 @@ interface MessageProps {
 export function Message({ message, onArtifactClick }: MessageProps) {
   const isUser = message.role === 'user'
   const isError = message.is_error
-
   return (
     <div className={cn(
       'flex gap-3',
@@ -30,35 +30,85 @@ export function Message({ message, onArtifactClick }: MessageProps) {
       {/* Content */}
       <div className={cn(
         'flex flex-col gap-2 max-w-[80%]',
-        isUser ? 'items-end' : 'items-start'
+        isUser ? 'items-end' : 'items-start',
+        isError && 'border-l-2 border-destructive pl-3'
       )}>
-        {/* Thoughts (for assistant messages) */}
-        {message.thoughts && !isUser && (
-          <Card className="p-3 bg-muted/50 text-sm text-muted-foreground">
-            <p className="font-medium mb-1">Thinking:</p>
-            <p>{message.thoughts}</p>
-          </Card>
+        {/* Iterations (New Standard Format) */}
+        {message.iterations && message.iterations.length > 0 ? (
+          <div className="flex flex-col gap-4 w-full mt-2">
+            {message.iterations.map((iter, i) => (
+              <div key={i} className="flex flex-col gap-2 border-l-2 border-muted pl-3">
+                <div className="text-xs font-medium text-muted-foreground uppercase">
+                  Iteration {iter.iteration}
+                </div>
+
+                {/* Thought */}
+                {iter.thought && (
+                  <Card className="p-3 bg-muted/30 text-sm">
+                    <span className="font-semibold text-muted-foreground block mb-1">Thought</span>
+                    {iter.thought}
+                  </Card>
+                )}
+
+                {/* Code */}
+                {iter.code && (
+                  <div className="mt-1">
+                    <span className="text-xs font-semibold text-muted-foreground mb-1 block">Code</span>
+                    <CodeViewer code={iter.code} language="python" />
+                  </div>
+                )}
+
+                {/* Output */}
+                {iter.output && (
+                  <div className="mt-1">
+                    <span className="text-xs font-semibold text-muted-foreground mb-1 block">Output</span>
+                    {/* Dynamic typed renderer */}
+                    <TypedDataRenderer
+                      data={iter.output}
+                    />
+                  </div>
+                )}
+
+                {/* Logs fallback or additional info */}
+                {iter.execution_logs && !iter.output && (
+                  <div className="mt-1 text-xs font-mono bg-black/5 p-2 rounded whitespace-pre-wrap">
+                    {iter.execution_logs}
+                  </div>
+                )}
+
+                {iter.error && (
+                  <div className="text-destructive text-sm bg-destructive/10 p-2 rounded">
+                    Error: {iter.error}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Legacy View (for old messages or simple responses) */
+          <>
+              {/* Thoughts (for assistant messages) */}
+              {message.thoughts && !isUser && (
+                <Card className="p-3 bg-muted/50 text-sm text-muted-foreground">
+                  <p className="font-medium mb-1">Thinking:</p>
+                  <p>{message.thoughts}</p>
+                </Card>
+              )}
+
+              {/* Code block */}
+              {message.code && !isUser && (
+                <CodeViewer code={message.code} language="python" />
+              )}
+            </>
         )}
 
-        {/* Main content */}
-        <Card className={cn(
-          'p-3',
-          isUser ? 'bg-primary text-primary-foreground' : 'bg-card',
-          isError && 'border-destructive bg-destructive/10'
-        )}>
-          {isError && (
-            <div className="flex items-center gap-2 text-destructive mb-2">
-              <AlertCircle className="h-4 w-4" />
-              <span className="font-medium">Error</span>
-            </div>
-          )}
-          <p className="whitespace-pre-wrap">{message.content}</p>
-        </Card>
-
-        {/* Code block */}
-        {message.code && !isUser && (
-          <CodeViewer code={message.code} language="python" />
+        {/* Primary Content (User Message or Assistant Response) */}
+        {message.content && (
+          <div className="whitespace-pre-wrap break-words">
+            {message.content}
+          </div>
         )}
+
 
         {/* Artifact badges */}
         {message.artifact_ids.length > 0 && (

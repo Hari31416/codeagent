@@ -13,7 +13,32 @@ export type StreamEventType =
   | 'iteration_complete'
   | 'error'
   | 'completed'
+  | 'completed'
   | 'cancelled'
+
+export type TypedDataKind = 'text' | 'table' | 'image' | 'plotly' | 'json'
+
+export interface TypedData {
+  kind: TypedDataKind
+  data: unknown
+  metadata?: Record<string, unknown>
+}
+
+export interface IterationOutput {
+  iteration: number
+  thought?: string
+  code?: string
+  execution_logs?: string
+  output?: TypedData
+  artifacts?: Array<{
+    artifact_id: string
+    file_name: string
+    file_type: string
+    url: string
+  }>
+  success: boolean
+  error?: string
+}
 
 export interface StreamEvent {
   type: 'status' | 'completed' | 'error' | 'cancelled'
