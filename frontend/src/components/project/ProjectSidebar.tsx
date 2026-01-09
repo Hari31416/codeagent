@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Plus, FolderOpen, ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
-import { getSessions } from '@/api/sessions'
+import { getSessions, deleteSession } from '@/api/sessions'
 import type { Session } from '@/types/session'
 import type { Project } from '@/types/project'
 import { cn } from '@/lib/utils'
@@ -13,7 +13,7 @@ interface ProjectSidebarProps {
   selectedProjectId: string | null
   currentSessionId: string | null
   onProjectSelect: (projectId: string) => void
-  onSessionSelect: (sessionId: string) => void
+  onSessionSelect: (sessionId: string | null) => void
   onNewProject: () => void
   onNewSession: (projectId: string) => void
   onDeleteProject: (projectId: string) => void
@@ -94,6 +94,24 @@ export function ProjectSidebar({
     }
   }
 
+  const handleDeleteSession = async (e: React.MouseEvent, sessionId: string, projectId: string) => {
+    e.stopPropagation()
+    if (confirm('Are you sure you want to delete this session?')) {
+      try {
+        await deleteSession(sessionId)
+        if (projectSessions[projectId]) {
+          // refresh just that project's sessions
+          loadProjectSessions(projectId)
+        }
+        if (currentSessionId === sessionId) {
+          onSessionSelect(null)
+        }
+      } catch (error) {
+        console.error("Failed to delete session", error)
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col h-full bg-muted/30">
       <div className="p-4 space-y-2">
@@ -167,13 +185,21 @@ export function ProjectSidebar({
                         key={session.session_id}
                         onClick={() => onSessionSelect(session.session_id)}
                         className={cn(
-                          'px-3 py-1.5 text-xs rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground truncate',
+                          'group flex items-center justify-between px-3 py-1.5 text-xs rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground',
                           currentSessionId === session.session_id
                             ? 'bg-accent/70 text-accent-foreground'
                             : 'text-muted-foreground'
                         )}
                       >
-                        {session.name || 'Untitled Session'}
+                        <span className="truncate">{session.name || 'Untitled Session'}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 opacity-0 group-hover:opacity-100 flex-shrink-0"
+                          onClick={(e) => handleDeleteSession(e, session.session_id, project.project_id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
                     ))}
                     {sessions.length === 0 && (

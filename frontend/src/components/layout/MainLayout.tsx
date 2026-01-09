@@ -73,7 +73,7 @@ export function MainLayout() {
         selectProject(projectId)
     }, [selectProject])
 
-    const handleSessionSelect = useCallback((sessionId: string) => {
+    const handleSessionSelect = useCallback((sessionId: string | null) => {
         setCurrentSessionId(sessionId)
         setSelectedArtifact(null)
     }, [])
