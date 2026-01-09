@@ -12,3 +12,4 @@ wheels/
 volumes
 logs
 nohup.out
+.DS_Store
