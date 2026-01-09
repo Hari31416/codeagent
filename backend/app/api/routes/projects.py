@@ -6,6 +6,7 @@ from uuid import UUID
 
 from app.db.pool import get_system_db
 from app.db.session_db import ProjectRepository, SessionRepository
+from app.services.workspace_service import WorkspaceService
 from app.shared.logging import get_logger
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -15,6 +16,7 @@ router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 
 project_repo = ProjectRepository()
 session_repo = SessionRepository()
+workspace_service = WorkspaceService()
 
 
 class CreateProjectRequest(BaseModel):
@@ -101,6 +103,33 @@ async def delete_project(project_id: UUID):
     """
     try:
         async with get_system_db() as conn:
+            # 1. Delete all session workspaces
+            sessions = await session_repo.list_sessions_by_project(
+                conn,
+                project_id=project_id,
+                limit=1000,  # Cap at 1000 for safety, though projects likely satisfy this
+            )
+            for session in sessions:
+                try:
+                    await workspace_service.delete_workspace(session["session_id"])
+                except Exception as e:
+                    logger.warning(
+                        "session_workspace_deletion_failed_during_project_delete",
+                        session_id=str(session["session_id"]),
+                        error=str(e),
+                    )
+
+            # 2. Delete project workspace
+            try:
+                await workspace_service.delete_project_workspace(project_id)
+            except Exception as e:
+                logger.warning(
+                    "project_workspace_deletion_failed",
+                    project_id=str(project_id),
+                    error=str(e),
+                )
+
+            # 3. Delete from DB
             deleted = await project_repo.delete_project(conn, project_id)
             if not deleted:
                 raise HTTPException(status_code=404, detail="Project not found")

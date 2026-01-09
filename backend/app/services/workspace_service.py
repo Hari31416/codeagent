@@ -152,3 +152,19 @@ class WorkspaceService:
             files_deleted=len(files),
         )
         return len(files)
+
+    async def delete_project_workspace(
+        self,
+        project_id: UUID,
+    ) -> int:
+        """Delete all files in a project's shared workspace. Returns count deleted."""
+        prefix = self.get_project_workspace_prefix(project_id)
+        files = self.storage.list_objects(prefix=prefix, recursive=True)
+        for file_info in files:
+            self.storage.delete(file_info["name"])
+        logger.info(
+            "project_workspace_deleted",
+            project_id=str(project_id),
+            files_deleted=len(files),
+        )
+        return len(files)
