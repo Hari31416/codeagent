@@ -11,9 +11,10 @@ interface ChatContainerProps {
     sessionId: string
     onArtifactSelect?: (artifactId: string) => void
     onArtifactCreated?: () => void
+    onSessionUpdate?: () => void
 }
 
-export function ChatContainer({ sessionId, onArtifactSelect, onArtifactCreated }: ChatContainerProps) {
+export function ChatContainer({ sessionId, onArtifactSelect, onArtifactCreated, onSessionUpdate }: ChatContainerProps) {
     const [attachedFileIds, setAttachedFileIds] = useState<string[]>([])
 
     const {
@@ -23,6 +24,7 @@ export function ChatContainer({ sessionId, onArtifactSelect, onArtifactCreated }
         isProcessing,
     } = useChat({
         sessionId,
+        onSessionRenamed: onSessionUpdate,
         onArtifactsCreated: (ids) => {
             if (onArtifactCreated) {
                 onArtifactCreated()

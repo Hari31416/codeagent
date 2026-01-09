@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { streamQuery } from '@/api/query'
 import * as sessionApi from '@/api/sessions'
 import type { Message } from '@/types/message'
@@ -7,6 +7,7 @@ import type { StreamEventType } from '@/types/api'
 interface UseChatOptions {
   sessionId: string
   onArtifactsCreated?: (artifactIds: string[]) => void
+  onSessionRenamed?: () => void
 }
 
 interface ChatState {
@@ -17,7 +18,7 @@ interface ChatState {
   totalIterations: number
 }
 
-export function useChat({ sessionId, onArtifactsCreated }: UseChatOptions) {
+export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: UseChatOptions) {
   const [messages, setMessages] = useState<Message[]>([])
   const [state, setState] = useState<ChatState>({
     status: 'idle',
@@ -51,6 +52,16 @@ export function useChat({ sessionId, onArtifactsCreated }: UseChatOptions) {
     setMessages(prev => [...prev, userMessage])
     setError(null)
     setState(prev => ({ ...prev, status: 'started' }))
+
+    // Auto-rename session if it's the first message
+    if (messages.length === 0) {
+      // Don't await this to avoid blocking the UI
+      sessionApi.updateSession(sessionId, {
+        name: content.slice(0, 50) + (content.length > 50 ? '...' : '')
+      }).then(() => {
+        onSessionRenamed?.()
+      }).catch(console.error)
+    }
 
     const assistantMessageId = crypto.randomUUID()
     const assistantMessageCreatedAt = new Date().toISOString()
@@ -232,9 +243,44 @@ export function useChat({ sessionId, onArtifactsCreated }: UseChatOptions) {
 
     const response = await sessionApi.getSessionHistory(sessionId)
     if (response.success && response.data) {
-      setMessages(response.data.messages)
+      const rawMessages = Array.isArray(response.data)
+        ? response.data
+        : (response.data as any).messages || []
+
+      const messages = rawMessages.map((msg: Message) => {
+        try {
+          // Check if content is a JSON string of a figure
+          if (msg.content && (msg.content.trim().startsWith('{') || msg.content.trim().startsWith('['))) {
+            const parsed = JSON.parse(msg.content)
+            if (parsed && (parsed.type === 'matplotlib_figure' || parsed.type === 'plotly_figure')) {
+              return { ...msg, content: 'Generated visualization.' }
+            }
+          }
+        } catch (e) {
+          // Not JSON or failed to parse, keep original content
+        }
+        return msg
+      })
+
+      setMessages(messages)
     }
   }, [sessionId])
+
+  useEffect(() => {
+    setMessages([])
+    setError(null)
+    setState({
+      status: 'idle',
+      currentThought: null,
+      currentCode: null,
+      iteration: 0,
+      totalIterations: 0,
+    })
+
+    if (sessionId) {
+      loadHistory()
+    }
+  }, [sessionId, loadHistory])
 
   return {
     messages,

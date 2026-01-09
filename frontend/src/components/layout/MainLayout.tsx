@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useSession } from '@/hooks/useSession'
 import { useArtifacts } from '@/hooks/useArtifacts'
 import { ChatContainer } from '@/components/chat/ChatContainer'
@@ -14,6 +14,8 @@ export function MainLayout() {
     const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null)
     const [isSidebarOpen, setIsSidebarOpen] = useState(true)
     const [isArtifactsOpen, setIsArtifactsOpen] = useState(true)
+
+    const [lastUpdated, setLastUpdated] = useState(Date.now())
 
     const { createSession } = useSession(currentSessionId || undefined)
     const { artifacts, refresh: refreshArtifacts } = useArtifacts(currentSessionId || undefined)
@@ -44,6 +46,22 @@ export function MainLayout() {
         }
     }, [handleArtifactSelect])
 
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+                e.preventDefault()
+                if (e.shiftKey) {
+                    setIsArtifactsOpen(prev => !prev)
+                } else {
+                    setIsSidebarOpen(prev => !prev)
+                }
+            }
+        }
+
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [])
+
     return (
         <div className="flex h-screen bg-background overflow-hidden">
             {/* Sidebar */}
@@ -56,6 +74,7 @@ export function MainLayout() {
                         currentSessionId={currentSessionId}
                         onSessionSelect={setCurrentSessionId}
                         onNewSession={handleNewSession}
+                        lastUpdated={lastUpdated}
                     />
                 </div>
             </div>
@@ -112,6 +131,7 @@ export function MainLayout() {
                                 sessionId={currentSessionId}
                                 onArtifactSelect={handleArtifactSelect}
                                 onArtifactCreated={refreshArtifacts}
+                                onSessionUpdate={() => setLastUpdated(Date.now())}
                             />
                         ) : (
                             <div className="flex-1 flex items-center justify-center text-muted-foreground">

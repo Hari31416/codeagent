@@ -111,7 +111,7 @@ export function Message({ message, onArtifactClick }: MessageProps) {
 
 
         {/* Artifact badges */}
-        {message.artifact_ids.length > 0 && (
+        {message.artifact_ids && message.artifact_ids.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {message.artifact_ids.map((id) => (
               <Badge

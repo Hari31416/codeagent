@@ -14,7 +14,7 @@ export function MessageList({ messages, onArtifactClick }: MessageListProps) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  if (messages.length === 0) {
+  if (!messages || messages.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
         <p className="text-lg">Start a conversation</p>

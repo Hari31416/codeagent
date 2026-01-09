@@ -13,6 +13,16 @@ export async function createSession(
   })
 }
 
+export async function updateSession(
+  sessionId: string,
+  updates: { name?: string }
+): Promise<ApiResponse<Session>> {
+  return apiRequest(`/sessions/${sessionId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  })
+}
+
 export async function getSessions(userId: string): Promise<SessionListResponse> {
   return apiRequest(`/sessions?user_id=${userId}`)
 }

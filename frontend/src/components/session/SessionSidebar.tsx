@@ -10,9 +10,10 @@ interface SessionSidebarProps {
   currentSessionId: string | null
   onSessionSelect: (sessionId: string | null) => void
   onNewSession: () => void
+  lastUpdated?: number
 }
 
-export function SessionSidebar({ currentSessionId, onSessionSelect, onNewSession }: SessionSidebarProps) {
+export function SessionSidebar({ currentSessionId, onSessionSelect, onNewSession, lastUpdated }: SessionSidebarProps) {
   const [sessions, setSessions] = useState<Session[]>([])
 
   const loadSessions = async () => {
@@ -29,7 +30,7 @@ export function SessionSidebar({ currentSessionId, onSessionSelect, onNewSession
 
   useEffect(() => {
     loadSessions()
-  }, [currentSessionId])
+  }, [currentSessionId, lastUpdated])
 
   const handleDelete = async (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation()
