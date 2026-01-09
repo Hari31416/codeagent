@@ -13,7 +13,7 @@ from typing import Any
 import structlog
 from structlog.types import Processor
 
-from app.core.config import settings
+from app.config import settings
 
 
 def configure_logging() -> None:

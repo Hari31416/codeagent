@@ -79,7 +79,3 @@ To ensure the agent is "stateful" and can remember previous steps, we will imple
 * Build the "History Replay" feature using the Postgres message store.
 * Implement signed-URL logic for secure, temporary access to MinIO files.
 * Add cleanup tasks to purge old workspaces and temporary Redis keys.
-
----
-
-**Would you like me to create the PostgreSQL schema design (table structures) for the workspaces, messages, and artifacts next?**

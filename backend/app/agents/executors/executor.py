@@ -185,7 +185,7 @@ class DaytonaExecutor(CodeExecutor):
         from app.agents.executors.daytona_executor import (
             DaytonaExecutor as DaytonaExecutorImpl,
         )
-        from app.core.config import settings
+        from app.config import settings
 
         # Use provided API key or fall back to settings
         api_key = api_key or settings.daytona_api_key
