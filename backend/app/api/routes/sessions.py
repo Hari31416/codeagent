@@ -2,6 +2,7 @@
 Session management API endpoints.
 """
 
+from typing import Any
 from uuid import UUID
 
 from app.db.pool import get_system_db
@@ -190,8 +191,26 @@ async def get_session_history(
         }
 
         # Extract iterations from metadata if present
+        # Extract iterations from metadata if present
         if metadata.get("iterations"):
-            enriched["iterations"] = metadata["iterations"]
+            # Normalize iteration outputs to ensure frontend compatibility
+            raw_iterations = metadata["iterations"]
+            if isinstance(raw_iterations, list):
+                normalized = []
+                for iter_data in raw_iterations:
+                    if isinstance(iter_data, dict):
+                        # Create copy to avoid mutating original if it was cached/shared (unlikely here but safe)
+                        n_iter = iter_data.copy()
+                        # Ensure output is typed
+                        n_iter["output"] = _normalize_iteration_output(
+                            n_iter.get("output")
+                        )
+                        normalized.append(n_iter)
+                    else:
+                        normalized.append(iter_data)
+                enriched["iterations"] = normalized
+            else:
+                enriched["iterations"] = raw_iterations
 
         # Add artifact IDs if present
         if msg.get("artifact_ids"):
@@ -200,6 +219,74 @@ async def get_session_history(
         enriched_messages.append(enriched)
 
     return {"success": True, "data": enriched_messages, "total": len(enriched_messages)}
+
+
+def _normalize_iteration_output(output: Any) -> dict[str, Any] | None:
+    """
+    Ensure iteration output is in TypedData format.
+    Matches logic in AgentOrchestrator._serialize_to_typed_data but for retrieval.
+    """
+    if output is None:
+        return None
+
+    # Check if already in TypedData format
+    if (
+        isinstance(output, dict)
+        and "kind" in output
+        and "data" in output
+        and isinstance(output.get("kind"), str)
+    ):
+        return output
+
+    # If it's a list or dict (and not typed data), treat as JSON or Multi
+    if isinstance(output, (dict, list)):
+        # If it looks like a plotly figure (dict with data/layout)
+        if isinstance(output, dict) and ("data" in output and "layout" in output):
+            return {
+                "kind": "plotly",
+                "data": output,
+                "metadata": {},
+            }
+
+        # Detect Table (List of Dicts) - Common fallback for DataFrames
+        if isinstance(output, list) and output and isinstance(output[0], dict):
+            # Check if it looks like a table (flat dicts)
+            # Collect all keys to ensure we handle sparse data
+            keys = set()
+            is_flat = True
+            for item in output:
+                if not isinstance(item, dict):
+                    is_flat = False
+                    break
+                keys.update(item.keys())
+
+            if is_flat:
+                headers = sorted(list(keys))
+                rows = []
+                for item in output:
+                    # Use None for missing values to be cleaner, or empty string
+                    row = [item.get(k, "") for k in headers]
+                    rows.append(row)
+
+                return {
+                    "kind": "table",
+                    "data": {"headers": headers, "rows": rows},
+                    "metadata": {"count": len(rows), "inferred_from": "list_of_dicts"},
+                }
+
+        # Default to JSON for structural data
+        return {
+            "kind": "json",
+            "data": output,
+            "metadata": {},
+        }
+
+    # Default to TEXT for everything else
+    return {
+        "kind": "text",
+        "data": str(output),
+        "metadata": {"original_type": type(output).__name__},
+    }
 
 
 @router.get("/{session_id}/artifacts")
