@@ -145,11 +145,11 @@ class AgentOrchestrator:
                 # Serialize iterations for storage in metadata
                 serialized_iterations = None
                 try:
-                    if final_result and final_result.get("iterations"):
+                    if final_result and final_result.get("code_history"):
                         # We need to process iterations to ensure 'output' is in TypedData format
                         # similar to how we do in _status_to_event
                         processed_iterations = []
-                        for iter_data in final_result["iterations"]:
+                        for iter_data in final_result["code_history"]:
                             # Create a copy to avoid modifying original
                             processed_iter = iter_data.copy()
 
