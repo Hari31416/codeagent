@@ -5,7 +5,7 @@ Specialized CodingAgent for data cleaning, analysis, and visualization.
 Uses the existing CodingAgent base class and executor infrastructure.
 """
 
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
 import pandas as pd
 from app.agents.base.base_agent import CodingAgent
@@ -72,6 +72,7 @@ class DataAnalysisAgent(CodingAgent):
         session_id: str,
         workspace_files: list[dict],
         dataframes: dict[str, pd.DataFrame] | None = None,
+        workspace_tools: dict[str, Any] | None = None,
         max_iterations: int = 5,
     ) -> AsyncGenerator[AgentStatus, None]:
         """
@@ -82,6 +83,7 @@ class DataAnalysisAgent(CodingAgent):
             session_id: Session ID for context
             workspace_files: List of files in the workspace
             dataframes: Pre-loaded DataFrames to inject into execution context
+            workspace_tools: Dictionary of workspace I/O functions
             max_iterations: Maximum number of reasoning iterations
 
         Yields:
@@ -98,6 +100,10 @@ class DataAnalysisAgent(CodingAgent):
         # The executor will inject these as global variables
         if dataframes:
             context.update(dataframes)
+
+        # Merge workspace tools into context
+        if workspace_tools:
+            context.update(workspace_tools)
 
         async for status in self.execute_stream(
             user_prompt=user_prompt,

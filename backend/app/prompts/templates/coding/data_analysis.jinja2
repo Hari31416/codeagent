@@ -27,6 +27,49 @@ No files currently in workspace.
 {% endif %}
 
 ----------------------------------------------------------------------
+WORKSPACE FILE I/O FUNCTIONS
+----------------------------------------------------------------------
+
+The following functions are available for reading and writing workspace files:
+
+LOW-LEVEL:
+- list_files() -> list[str]
+    Returns list of filenames in the workspace.
+
+- read_file(filename: str, as_text: bool = True) -> str | bytes
+    Read file contents. Set as_text=False for binary files.
+
+- write_file(filename: str, content: str | bytes) -> str
+    Write content to a file. Returns the filename.
+
+HIGH-LEVEL HELPERS:
+- read_csv(filename: str, **kwargs) -> pd.DataFrame
+    Read CSV file directly into a DataFrame.
+
+- read_excel(filename: str, **kwargs) -> pd.DataFrame
+    Read Excel file directly into a DataFrame.
+
+- save_csv(df: pd.DataFrame, filename: str, **kwargs) -> str
+    Save DataFrame to workspace as CSV. Returns filename.
+
+- save_figure(fig, filename: str, **kwargs) -> str
+    Save matplotlib/plotly figure to workspace. Returns filename.
+
+Example:
+```python
+# List available files
+files = list_files()
+print(files)
+
+# Read a CSV file
+df = read_csv("sales_data.csv")
+
+# Process and save result
+result = df.groupby('region').sum()
+save_csv(result, "sales_by_region.csv")
+```
+
+----------------------------------------------------------------------
 VISUALIZATION GUIDELINES
 ----------------------------------------------------------------------
 

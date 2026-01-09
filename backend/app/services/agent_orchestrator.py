@@ -14,6 +14,7 @@ from app.db.pool import get_system_db
 from app.db.session_db import ArtifactRepository, MessageRepository
 from app.services.session_state_service import SessionStateService
 from app.services.workspace_service import WorkspaceService
+from app.services.workspace_tools import create_workspace_tools
 from app.shared.logging import get_logger
 from app.shared.models import AgentStatus, AgentStatusType
 from app.shared.stream_models import StreamEvent, StreamEventType
@@ -80,6 +81,9 @@ class AgentOrchestrator:
             # Initialize agent
             agent = DataAnalysisAgent()
 
+            # Create workspace tools for this session
+            workspace_tools = create_workspace_tools(session_id, self.workspace_service)
+
             # Execute with streaming
             final_result = None
             async for status in agent.execute_with_workspace(
@@ -87,6 +91,7 @@ class AgentOrchestrator:
                 session_id=str(session_id),
                 workspace_files=workspace_files,
                 dataframes=dataframes,
+                workspace_tools=workspace_tools,
             ):
                 # Convert AgentStatus to StreamEvent
                 yield self._status_to_event(status)
