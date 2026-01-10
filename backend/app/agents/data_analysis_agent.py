@@ -141,5 +141,7 @@ class DataAnalysisAgent(CodingAgent):
             user_prompt=user_prompt,
             context=context,
             max_iterations=max_iterations,
+            session_id=session_id,
+            include_context=True,
         ):
             yield status

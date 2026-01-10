@@ -588,14 +588,25 @@ class CodingAgent(BaseAgent):
                 role="user",
                 content=user_prompt,
             )
+            # Serialize code_history to ensure all outputs are JSON-safe
+            # (DataFrames, Figures, etc. need serialization)
+            serialized_code_history = []
+            for entry in code_history:
+                serialized_entry = entry.copy()
+                if "output" in serialized_entry:
+                    serialized_entry["output"] = self._serialize_result(
+                        serialized_entry["output"]
+                    )
+                serialized_code_history.append(serialized_entry)
+
             await self.memory.add_message(
                 session_id=session_id,
                 role="assistant",
-                content=str(final_result) if final_result else "No result",
+                content=str(final_result) if final_result is not None else "No result",
                 metadata={
                     "agent": self.agent_name,
                     "iterations": len(code_history),
-                    "code_history": code_history,
+                    "code_history": serialized_code_history,
                     "is_complete": is_complete,
                 },
             )
