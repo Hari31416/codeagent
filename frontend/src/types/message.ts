@@ -13,6 +13,7 @@ export interface Message {
   created_at: string
   metadata: Record<string, unknown>
   iterations?: import('./api').IterationOutput[]
+  usage?: import('./api').TokenUsage
 }
 
 export interface ChatHistory {

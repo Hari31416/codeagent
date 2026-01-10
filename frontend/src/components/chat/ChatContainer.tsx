@@ -3,7 +3,6 @@ import { useChat } from '@/hooks/useChat'
 import { useFileUpload } from '@/hooks/useFileUpload'
 import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
-import { TypingIndicator } from './TypingIndicator'
 import { FileUpload } from '@/components/upload/FileUpload'
 import { FileList } from '@/components/upload/FileList'
 
@@ -67,16 +66,8 @@ export function ChatContainer({ sessionId, onArtifactSelect, onArtifactCreated, 
                 <MessageList
                     messages={messages}
                     onArtifactClick={onArtifactSelect}
+                    processingState={isProcessing ? state : undefined}
                 />
-
-                {isProcessing && (
-                    <TypingIndicator
-                        status={state.status}
-                        thought={state.currentThought}
-                        iteration={state.iteration}
-                        totalIterations={state.totalIterations}
-                    />
-                )}
             </div>
 
             {/* Attached files preview */}

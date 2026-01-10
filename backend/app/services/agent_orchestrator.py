@@ -126,9 +126,13 @@ class AgentOrchestrator:
                 session_id, workspace_files
             )
 
+            # Get usage stats from agent
+            usage_stats = agent.get_usage_stats()
+
             # Save to chat history
+            user_msg = None
             async with get_system_db() as conn:
-                await self.message_repo.add_message(
+                user_msg = await self.message_repo.add_message(
                     conn=conn,
                     session_id=session_id,
                     role="user",
@@ -209,9 +213,10 @@ class AgentOrchestrator:
                     metadata=(
                         {
                             "iterations": serialized_iterations,
+                            "usage": usage_stats,
                         }
                         if serialized_iterations
-                        else None
+                        else {"usage": usage_stats}
                     ),
                 )
 
@@ -219,6 +224,10 @@ class AgentOrchestrator:
             response_data = {
                 "artifact_ids": [str(a["artifact_id"]) for a in new_artifacts],
                 "artifacts": [],
+                "usage": usage_stats,
+                "user_created_at": (
+                    user_msg["created_at"].isoformat() if user_msg else None
+                ),
             }
 
             # Generate presigned URLs for new artifacts

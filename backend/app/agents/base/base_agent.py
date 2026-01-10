@@ -768,6 +768,14 @@ class CodingAgent(BaseAgent):
         if result is None:
             return None
 
+        # Recursively handle lists and tuples
+        if isinstance(result, (list, tuple)):
+            return [self._serialize_result(item) for item in result]
+
+        # Recursively handle dictionaries
+        if isinstance(result, dict):
+            return {str(k): self._serialize_result(v) for k, v in result.items()}
+
         # Handle PrintContainer from smolagents executor (duck typing)
         if (
             hasattr(result, "value")
@@ -810,12 +818,16 @@ class CodingAgent(BaseAgent):
                 return f"<matplotlib.figure.Figure: serialization failed - {e}>"
 
         # Check for pandas DataFrame/Series
-        if hasattr(result, "to_dict"):
+        if hasattr(result, "to_json"):
             try:
-                return result.to_dict(orient="records")
-            except TypeError:
+                import json
+
+                # usage of to_json ensures date handling and other types
+                return json.loads(result.to_json(orient="records", date_format="iso"))
+            except Exception:
+                # Fallback if to_json fails (e.g. not a pandas object despite attribute)
                 try:
-                    return result.to_dict()
+                    return result.to_dict(orient="records")
                 except Exception:
                     return str(result)
 
@@ -847,8 +859,8 @@ class CodingAgent(BaseAgent):
             except Exception:
                 return str(result)
 
-        # Check if it's already a JSON-safe type
-        if isinstance(result, (dict, list, str, int, float, bool)):
+        # Check if it's already a JSON-safe primitive
+        if isinstance(result, (str, int, float, bool)):
             return result
 
         # Default: convert to string

@@ -169,6 +169,8 @@ export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: Use
           }> | undefined
 
           artifactIds = event.data.artifact_ids as string[] || []
+          const usageStats = event.data.usage as import('@/types/api').TokenUsage | undefined
+          const userCreatedAt = event.data.user_created_at as string | undefined
 
           if (artifactIds.length > 0 && onArtifactsCreated) {
             onArtifactsCreated(artifactIds)
@@ -181,12 +183,16 @@ export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: Use
                 ...msg,
                 content: assistantContent,
                 artifact_ids: artifactIds,
+                created_at: event.timestamp || new Date().toISOString(),
+                usage: usageStats,
                 metadata: {
                   ...msg.metadata,
                   artifacts: assistantArtifacts
                 }
               }
-              : msg
+              : (userCreatedAt && msg.message_id === userMessage.message_id)
+                ? { ...msg, created_at: userCreatedAt }
+                : msg
           ))
         }
 
@@ -252,6 +258,7 @@ export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: Use
         ...msg,
         artifact_ids: msg.artifact_ids || [],
         iterations: msg.iterations || [],
+        usage: msg.metadata?.usage as import('@/types/api').TokenUsage | undefined,
       }))
 
       setMessages(messages)

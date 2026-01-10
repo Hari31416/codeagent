@@ -24,6 +24,16 @@ export interface TypedData {
   metadata?: Record<string, unknown>
 }
 
+export interface TokenUsage {
+  model: string
+  call_count: number
+  input_tokens: number
+  output_tokens: number
+  total_tokens: number
+  estimated_cost_usd: number
+  agent_name?: string
+}
+
 export interface IterationOutput {
   iteration: number
   thought?: string

@@ -5,14 +5,20 @@ import { Message } from './Message'
 interface MessageListProps {
   messages: MessageType[]
   onArtifactClick?: (artifactId: string) => void
+  processingState?: {
+    status: import('@/types/api').StreamEventType | 'idle'
+    currentThought: string | null
+    iteration: number
+    totalIterations: number
+  }
 }
 
-export function MessageList({ messages, onArtifactClick }: MessageListProps) {
+export function MessageList({ messages, onArtifactClick, processingState }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [messages, processingState]) // Scroll on state changes too
 
   if (!messages || messages.length === 0) {
     return (
@@ -25,13 +31,17 @@ export function MessageList({ messages, onArtifactClick }: MessageListProps) {
 
   return (
     <div className="space-y-4">
-      {messages.map((message) => (
-        <Message 
-          key={message.message_id} 
-          message={message}
-          onArtifactClick={onArtifactClick}
-        />
-      ))}
+      {messages.map((message, index) => {
+        const isLast = index === messages.length - 1
+        return (
+          <Message
+            key={message.message_id}
+            message={message}
+            onArtifactClick={onArtifactClick}
+            processingState={isLast ? processingState : undefined}
+          />
+        )
+      })}
       <div ref={bottomRef} />
     </div>
   )

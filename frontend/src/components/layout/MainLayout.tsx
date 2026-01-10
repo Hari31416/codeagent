@@ -211,13 +211,21 @@ export function MainLayout() {
                                         Welcome to AI Data Analyst
                                     </h2>
                                     <p className="mb-4">
-                                            {projects.length === 0
-                                                ? 'Create a project to get started'
-                                                : 'Select a project and create a session to start analyzing'}
+                                            {selectedProjectId
+                                                ? 'Create a new session to start analyzing'
+                                                : projects.length === 0
+                                                    ? 'Create a project to get started'
+                                                    : 'Select a project to view sessions or create a new one'}
                                     </p>
+                                        {selectedProjectId ? (
+                                            <Button onClick={() => handleNewSession(selectedProjectId)}>
+                                                New Session
+                                            </Button>
+                                        ) : (
                                         <Button onClick={handleNewProject}>
                                             New Project
-                                    </Button>
+                                                </Button>
+                                        )}
                                 </div>
                             </div>
                         )}
