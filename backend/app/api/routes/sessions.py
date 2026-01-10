@@ -7,6 +7,7 @@ from uuid import UUID
 
 from app.db.pool import get_system_db
 from app.db.session_db import ArtifactRepository, MessageRepository, SessionRepository
+from app.services.export_service import ExportService
 from app.services.workspace_service import WorkspaceService
 from app.shared.logging import get_logger
 from fastapi import APIRouter, HTTPException, Query
@@ -19,6 +20,7 @@ session_repo = SessionRepository()
 message_repo = MessageRepository()
 artifact_repo = ArtifactRepository()
 workspace_service = WorkspaceService()
+export_service = ExportService()
 
 
 class CreateSessionRequest(BaseModel):
@@ -383,3 +385,30 @@ async def list_sessions(
         ],
         "total": len(sessions),
     }
+
+
+@router.get("/{session_id}/export")
+async def export_session(session_id: UUID):
+    """
+    Export a session as JSON metadata and markdown.
+
+    Returns:
+        - metadata: Full session metadata
+        - markdown: Structured markdown with embedded artifacts
+        - filename: Suggested filename for download
+    """
+    try:
+        result = await export_service.export_session(session_id)
+        return {
+            "success": True,
+            "data": {
+                "metadata": result.metadata_json,
+                "markdown": result.markdown_content,
+                "filename": result.filename,
+            },
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error("export_session_failed", error=str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

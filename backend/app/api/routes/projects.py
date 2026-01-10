@@ -6,6 +6,7 @@ from uuid import UUID
 
 from app.db.pool import get_system_db
 from app.db.session_db import ProjectRepository, SessionRepository
+from app.services.export_service import ExportService
 from app.services.workspace_service import WorkspaceService
 from app.shared.logging import get_logger
 from fastapi import APIRouter, HTTPException, Query
@@ -17,6 +18,7 @@ router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 project_repo = ProjectRepository()
 session_repo = SessionRepository()
 workspace_service = WorkspaceService()
+export_service = ExportService()
 
 
 class CreateProjectRequest(BaseModel):
@@ -187,4 +189,33 @@ async def list_project_sessions(
         raise
     except Exception as e:
         logger.error("list_project_sessions_failed", error=str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{project_id}/export")
+async def export_project(project_id: UUID):
+    """
+    Export all sessions in a project as JSON metadata and markdown.
+
+    Returns:
+        - metadata: Full project and session metadata
+        - markdown: Combined markdown with embedded artifacts
+        - filename: Suggested filename for download
+        - session_count: Number of sessions exported
+    """
+    try:
+        result = await export_service.export_project(project_id)
+        return {
+            "success": True,
+            "data": {
+                "metadata": result.metadata_json,
+                "markdown": result.markdown_content,
+                "filename": result.filename,
+                "session_count": result.session_count,
+            },
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error("export_project_failed", error=str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

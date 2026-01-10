@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Plus, FolderOpen, ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
+import { Plus, FolderOpen, ChevronDown, ChevronRight, Trash2, Download } from 'lucide-react'
 import { getSessions, deleteSession } from '@/api/sessions'
 import type { Session } from '@/types/session'
 import type { Project } from '@/types/project'
@@ -17,6 +17,7 @@ interface ProjectSidebarProps {
   onNewProject: () => void
   onNewSession: (projectId: string) => void
   onDeleteProject: (projectId: string) => void
+  onExportProject?: (projectId: string) => void
   lastUpdated?: number
   collapsed?: boolean
 }
@@ -30,6 +31,7 @@ export function ProjectSidebar({
   onNewProject,
   onNewSession,
   onDeleteProject,
+  onExportProject,
   lastUpdated,
   collapsed = false,
 }: ProjectSidebarProps) {
@@ -189,14 +191,28 @@ export function ProjectSidebar({
                     {!collapsed && <span className="truncate font-medium">{project.name}</span>}
                   </div>
                   {!collapsed && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 flex-shrink-0"
-                      onClick={(e) => handleDeleteProject(e, project.project_id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 flex-shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (onExportProject) onExportProject(project.project_id)
+                        }}
+                        title="Export Project"
+                      >
+                        <Download className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={(e) => handleDeleteProject(e, project.project_id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   )}
                 </div>
 

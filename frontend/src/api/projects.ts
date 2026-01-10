@@ -64,3 +64,7 @@ export async function uploadProjectFile(
 
   return response.json()
 }
+
+export async function exportProject(projectId: string): Promise<ApiResponse<import('@/types/api').ExportData>> {
+  return apiRequest(`/projects/${projectId}/export`)
+}

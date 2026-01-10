@@ -36,4 +36,5 @@ dependencies = [
     "seaborn>=0.13.0",
     "scipy>=1.15.0",
     "scikit-learn>=1.6.0",
+    "kaleido>=1.2.0",
 ]

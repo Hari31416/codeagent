@@ -77,3 +77,12 @@ export interface ModelInfo {
   context_length: number
   description?: string
 }
+
+export interface ExportData {
+  metadata: Record<string, unknown>
+  markdown: string
+  filename: string
+  session_count?: number
+}
+
+export type ExportResponse = ApiResponse<ExportData>

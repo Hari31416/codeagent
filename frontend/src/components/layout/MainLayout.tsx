@@ -28,7 +28,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { MoreVertical, FolderOpen } from 'lucide-react'
 
-import { uploadProjectFile } from '@/api/projects'
+import { uploadProjectFile, exportProject } from '@/api/projects'
+import { exportSession } from '@/api/sessions'
+import { ExportModal } from '@/components/export/ExportModal'
+import { Download } from 'lucide-react'
 
 export function MainLayout() {
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
@@ -36,6 +39,42 @@ export function MainLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true)
     const [isArtifactsOpen, setIsArtifactsOpen] = useState(true)
     const [lastUpdated, setLastUpdated] = useState(Date.now())
+
+    // Export state
+    const [isExportModalOpen, setIsExportModalOpen] = useState(false)
+    const [exportData, setExportData] = useState<{ metadata: Record<string, any>, markdown: string, filename: string } | null>(null)
+    const [isExportLoading, setIsExportLoading] = useState(false)
+
+    const handleExportSession = useCallback(async () => {
+        if (!currentSessionId) return
+        setIsExportLoading(true)
+        setIsExportModalOpen(true)
+        try {
+            const response = await exportSession(currentSessionId)
+            if (response.success && response.data) {
+                setExportData(response.data)
+            }
+        } catch (error) {
+            console.error("Failed to export session", error)
+        } finally {
+            setIsExportLoading(false)
+        }
+    }, [currentSessionId])
+
+    const handleExportProject = useCallback(async (projectId: string) => {
+        setIsExportLoading(true)
+        setIsExportModalOpen(true)
+        try {
+            const response = await exportProject(projectId)
+            if (response.success && response.data) {
+                setExportData(response.data)
+            }
+        } catch (error) {
+            console.error("Failed to export project", error)
+        } finally {
+            setIsExportLoading(false)
+        }
+    }, [])
 
     // Responsive breakpoints
     const isDesktop = useMediaQuery("(min-width: 1024px)")
@@ -165,6 +204,7 @@ export function MainLayout() {
                         onNewProject={handleNewProject}
                         onNewSession={handleNewSession}
                         onDeleteProject={deleteProject}
+                        onExportProject={handleExportProject}
                         lastUpdated={lastUpdated}
                         collapsed={isSidebarCollapsed}
                     />
@@ -257,11 +297,33 @@ export function MainLayout() {
                                         <PanelRight className="mr-2 h-4 w-4" />
                                         <span>{isArtifactsOpen ? "Hide" : "Show"} Artifacts</span>
                                     </DropdownMenuItem>
+                                    {currentSessionId && (
+                                        <DropdownMenuItem onClick={handleExportSession}>
+                                            <Download className="mr-2 h-4 w-4" />
+                                            <span>Export Session</span>
+                                        </DropdownMenuItem>
+                                    )}
+                                    {selectedProjectId && (
+                                        <DropdownMenuItem onClick={() => handleExportProject(selectedProjectId)}>
+                                            <Download className="mr-2 h-4 w-4" />
+                                            <span>Export Project</span>
+                                        </DropdownMenuItem>
+                                    )}
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         ) : (
                             // Desktop Actions
                             <>
+                                    {currentSessionId && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={handleExportSession}
+                                            title="Export Session"
+                                        >
+                                            <Download className="h-4 w-4" />
+                                        </Button>
+                                    )}
                                 <Button
                                     variant="ghost"
                                     size="icon"
@@ -404,6 +466,12 @@ export function MainLayout() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            <ExportModal
+                open={isExportModalOpen}
+                onOpenChange={setIsExportModalOpen}
+                exportData={exportData}
+                isLoading={isExportLoading}
+            />
         </div>
     )
 }

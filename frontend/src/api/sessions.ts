@@ -53,3 +53,7 @@ export async function deleteSession(sessionId: string): Promise<ApiResponse<void
 export async function getSessionArtifacts(sessionId: string): Promise<ApiResponse<Artifact[]>> {
   return apiRequest(`/sessions/${sessionId}/artifacts`)
 }
+
+export async function exportSession(sessionId: string): Promise<ApiResponse<import('@/types/api').ExportData>> {
+  return apiRequest(`/sessions/${sessionId}/export`)
+}

@@ -74,6 +74,27 @@ async def get_artifact_url(
     }
 
 
+@router.get("/{artifact_id}/download")
+async def download_artifact(artifact_id: UUID):
+    """
+    Redirect to a presigned download URL for the artifact.
+    """
+    async with get_system_db() as conn:
+        artifact = await artifact_repo.get_artifact(conn, artifact_id)
+
+    if not artifact:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+
+    url = storage_service.get_presigned_url(
+        artifact["minio_object_key"],
+        expires=timedelta(hours=1),
+    )
+
+    from fastapi.responses import RedirectResponse
+
+    return RedirectResponse(url=url)
+
+
 @router.get("/sessions/{session_id}")
 async def get_session_artifacts(session_id: UUID):
     """Get all artifacts for a session."""
