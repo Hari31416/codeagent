@@ -22,6 +22,8 @@ export function ChatContainer({ sessionId, onArtifactSelect, onArtifactCreated, 
         state,
         sendMessage,
         isProcessing,
+        isAwaitingClarification,
+        pendingClarification,
     } = useChat({
         sessionId,
         onSessionRenamed: onSessionUpdate,
@@ -83,12 +85,23 @@ export function ChatContainer({ sessionId, onArtifactSelect, onArtifactCreated, 
             )}
 
             {/* Input area */}
-            <div className="p-4 border-t flex justify-center">
+            <div className="p-4 border-t flex flex-col items-center gap-2">
+                {isAwaitingClarification && pendingClarification && (
+                    <div className="w-full max-w-3xl px-4 py-2 bg-primary/5 border border-primary/20 rounded-lg text-sm text-primary animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <span className="font-semibold mr-2">Clarification needed:</span>
+                        {pendingClarification}
+                    </div>
+                )}
                 <div className="w-full max-w-3xl">
                     <ChatInput
                         onSend={handleSend}
                         disabled={isProcessing || isUploading}
-                        placeholder={isProcessing ? 'Processing...' : 'Ask about your data...'}
+                        isClarifying={isAwaitingClarification}
+                        placeholder={
+                            isProcessing ? 'Processing...' :
+                                isAwaitingClarification ? 'Provide clarification...' :
+                                    'Ask about your data...'
+                        }
                         selectedModel={selectedModel}
                         onModelChange={setSelectedModel}
                         actions={

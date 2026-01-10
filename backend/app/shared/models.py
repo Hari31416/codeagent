@@ -381,6 +381,7 @@ class AgentStatusType(str, Enum):
     GENERATING_CODE = "generating_code"
     EXECUTING = "executing"
     ITERATION_COMPLETE = "iteration_complete"
+    CLARIFICATION_REQUIRED = "clarification_required"
     ERROR = "error"
     COMPLETED = "completed"
 

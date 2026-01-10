@@ -1,12 +1,17 @@
 # CodingAgent
 
-**CodingAgent** is a stateful, AI-driven platform for automated data analysis and visualization. It transforms natural language queries into executable Python code, runs it in a secure sandbox, and renders interactive artifacts (charts, tables) in real-time.
+CodingAgent is a sophisticated AI-driven platform for automated data analysis and visualization. It enables users to transform natural language queries into executable Python code, run it in a secure sandbox, and view interactive artifacts in real-time.
+
+[![Build Status](https://img.shields.io/badge/status-active-success.svg)](#)
+[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
+[![React](https://img.shields.io/badge/react-19-blue.svg)](https://reactjs.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
 
 ## Architecture Overview
 
-The system follows a project-centric, event-driven architecture designed for high throughput and persistent state management.
+The system architecture is designed for scalability and security, utilizing a multi-layered approach to handle complex data analysis tasks.
 
 ```mermaid
 graph TD
@@ -15,14 +20,14 @@ graph TD
     subgraph "Frontend (React + Vite)"
         UI["Project & Session Management"]
         Chat["Interactive Chat Interface"]
-        Artifacts["Rich Result Renderer"]
+        Artifacts["Rich Result Renderer (Plotly/Matplotlib)"]
     end
     
     subgraph "Backend (FastAPI)"
         API["API Gateway"]
         Orchestrator["Agent Orchestrator"]
         Agent["ReAct Data Analysis Agent"]
-        Sandbox["Python Sandbox (Isolated)"]
+        Sandbox["Python Sandbox (Smolagents Executor)"]
     end
     
     subgraph "Storage & Infrastructure"
@@ -49,50 +54,51 @@ graph TD
 
 ## Key Features
 
-- **Project-Based Organization**: Group multiple analysis sessions under unified projects with shared datasets and persistent state.
-- **Natural Language Data Analysis**: Convert natural language queries into complex data processing, filtering, and aggregation using `pandas` and `numpy`.
-- **Multi-Model Support**: Seamless access to frontier models (GPT-5.2, Claude 4.5 Sonnet, Gemini 3 Pro) via a unified OpenRouter interface.
-- **Secure Code Execution**: Isolated sandbox for running AI-generated code with strict authorized imports and safety boundaries.
-- **Real-Time Artifact Rendering**: Dynamic streaming and rendering of interactive `Plotly` charts, `pandas` tables, and execution logs.
-- **Automated Self-Correction**: The agent detects code execution errors and automatically refines the logic to achieve the user's goal.
-- **Stateful Intelligence**: Persistent context across interactions, including file history, previous reasoning, and agent "thought" logs.
+- **Project-Centric Workflow**: Organize analysis sessions into projects with shared datasets and persistent state.
+- **Natural Language to Code**: Converts text queries into optimized Python code using `pandas`, `numpy`, and visualization libraries.
+- **Multimodal LLM Support**: Leverage frontier models like Claude 3.5, GPT-4o, and Gemini 1.5 Pro via OpenRouter.
+- **Interactive Visualizations**: Real-time rendering of `Plotly` graphs, `Matplotlib` charts, and interactive tables.
+- **Secure Code Sandbox**: Executes AI-generated code in an isolated environment with restricted imports and safety checks.
+- **Stateful Sessions**: Maintains conversation history and workspace state across multiple interactions.
+- **Automated Debugging**: The agent can self-correct by analyzing execution logs and refining its code on failure.
+- **Human In Loop**: The agent can request user input to clarify its reasoning or to refine its code.
 
 ## Tech Stack
 
 | Component | Technologies |
 | --- | --- |
-| **Frontend** | React 19, Vite, Tailwind CSS v4, Shadcn UI, Lucide |
-| **Backend** | FastAPI, Pydantic, LiteLLM, smolagents |
-| **Data Science** | Pandas, Numpy, Plotly, Matplotlib, Scikit-learn |
-| **Database** | PostgreSQL 16 (Relational), Redis (Caching/Locking) |
-| **Storage** | MinIO (S3-Compatible Object Storage) |
-| **Tooling** | **uv** (Python Package Manager), **pnpm** (Node.js Package Manager) |
+| **Frontend** | React 19, Vite, Tailwind CSS v4, Shadcn UI, Lucide Icons |
+| **Backend** | FastAPI, Pydantic v2, LiteLLM, smolagents |
+| **Data Analysis** | Pandas, Numpy, Plotly, Matplotlib, Seaborn, Scikit-learn |
+| **Database** | PostgreSQL 16, Redis (Caching and Session Locking) |
+| **Storage** | MinIO (Object Storage for artifacts and workspaces) |
+| **Package Management** | `uv` (Python), `pnpm` (Node.js) |
 
 ## Project Structure
 
 ```text
 .
-├── backend/                # FastAPI Application
+├── backend/                # Backend API and Agent Logic
 │   ├── app/
-│   │   ├── agents/         # ReAct logic & specialized analysis agents
-│   │   ├── api/routes/     # REST Endpoints (Projects, Sessions, Query)
-│   │   ├── core/           # Core infrastructure (Storage, Cache, Security)
-│   │   ├── db/             # Repository layer & Database connectivity
-│   │   ├── prompts/        # Jinja2 templates for LLM instruction sets
-│   │   ├── services/       # Orchestration & Business logic
-│   │   └── config.py       # Pydantic Settings & environment config
-│   └── main.py             # Server entry point
-├── frontend/               # React + Vite Application
+│   │   ├── agents/         # ReAct agent implementations & executors
+│   │   ├── api/routes/     # RESTful API endpoints (Query, Sessions, Projects)
+│   │   ├── core/           # Infrastructure services (Cache, Storage)
+│   │   ├── db/             # Persistence layer & Repositories
+│   │   ├── prompts/        # LLM instruction templates (Jinja2)
+│   │   ├── services/       # Business logic & Orchestration
+│   │   └── config.py       # Application settings & environment configuration
+│   └── main.py             # FastAPI entry point
+├── frontend/               # React Application
 │   ├── src/
-│   │   ├── api/            # API client definitions (Axios)
-│   │   ├── components/     # UI: Chat components, Artifact renderers, Sidebars
-│   │   ├── hooks/          # Custom hooks for state & API consumption
+│   │   ├── api/            # API client (Axios-based)
+│   │   ├── components/     # UI Components (Chat, Sidebar, Artifacts)
+│   │   ├── hooks/          # React hooks for state and side effects
 │   │   ├── stores/         # Global state management
-│   │   └── types/          # TypeScript definitions
-│   └── package.json
-├── docker-compose.yml      # Service orchestration
-├── docker-compose.infra.yml # External dependencies (Postgres, Redis, MinIO)
-└── Makefile                # Shortcuts for setup and development
+│   │   └── types/          # TypeScript interface definitions
+│   └── vite.config.ts      # Vite build configuration
+├── docker-compose.yml      # Service orchestration (Backend + Frontend)
+├── docker-compose.infra.yml # Infrastructure services (Postgres, Redis, MinIO)
+└── Makefile                # Development and deployment shortcuts
 ```
 
 ## Logic Flows
@@ -120,7 +126,7 @@ sequenceDiagram
         S->>S: Read Files / Generate Plots
         S->>A: Execution Logs + Result
         A->>B: Stream Status (SSE)
-        B->>F: Stream Thoughts/Logs
+        B->>F: Stream Thoughts/Code/Logs
     end
     B->>B: Capture New Artifacts (MinIO -> DB)
     B->>B: Save Message History
@@ -132,32 +138,47 @@ sequenceDiagram
 ## Installation & Setup
 
 ### Quick Start (using Makefile)
+
 The project includes a `Makefile` to simplify development and infrastructure management.
 
-- **Infrastructure**: `make up` (starts Postgres, Redis, MinIO) / `make down` (stops them).
+- **Infrastructure**: `make up` (starts PostgreSQL, Redis, MinIO) / `make down` (stops them).
 - **Full Setup**: `make setup` (installs backend and frontend dependencies).
-- **Full Start**: `make start` (starts infrastructure and both service servers).
-- **Full Stop**: `make stop` (kills all running processes and infrastructure).
+- **Start All**: `make start` (starts infrastructure and both service servers).
+- **Stop All**: `make stop` (stops all services and infrastructure).
 
 ### Manual Installation
 
 #### 1. Infrastructure
-Ensure Docker is installed and run:
+Run the infrastructure services using Docker:
 ```bash
 docker-compose -f docker-compose.infra.yml up -d
 ```
 
-#### 2. Backend Setup (using uv)
+#### 2. Backend Setup
+1. Navigate to the backend directory: `cd backend`
+2. Install dependencies using `uv`: `uv sync`
+3. Configure your environment: Create a `.env` file with `OPENROUTER_API_KEY`.
+4. Run the server: `python main.py`
+
+#### 3. Frontend Setup
+1. Navigate to the frontend directory: `cd frontend`
+2. Install dependencies using `pnpm`: `pnpm install`
+3. Start the development server: `pnpm dev`
+
+## Usage Examples
+
+### API Query Example
+
+To initiate a coding task via the API:
+
 ```bash
-cd backend
-uv sync
-# Configure .env with OPENROUTER_API_KEY
-python main.py
+curl -X POST http://localhost:8000/api/v1/sessions/{session_id}/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Analyze the sales data in sales.csv and plot monthly revenue.",
+    "file_ids": ["uuid-of-sales-csv"],
+    "model": "openrouter/anthropic/claude-3.5-sonnet"
+  }'
 ```
 
-#### 3. Frontend Setup (using pnpm)
-```bash
-cd frontend
-pnpm install
-pnpm dev
-```
+The response will be a Server-Sent Events (SSE) stream providing real-time updates on the agent's behavior.

@@ -5,12 +5,13 @@ export interface ApiResponse<T> {
   error?: string
 }
 
-export type StreamEventType = 
+export type StreamEventType =
   | 'started'
   | 'thinking'
   | 'generating_code'
   | 'executing'
   | 'iteration_complete'
+  | 'clarification_required'
   | 'error'
   | 'completed'
   | 'completed'

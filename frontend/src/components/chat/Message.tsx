@@ -4,7 +4,7 @@ import type { StreamEventType } from '@/types/api'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { CollapsibleCode } from '@/components/chat/CollapsibleCode'
-import { User, Bot, Brain, Code, Play, Check, ChevronRight, ChevronDown } from 'lucide-react'
+import { User, Bot, Brain, Code, Play, Check, ChevronRight, ChevronDown, MessageCircleQuestion } from 'lucide-react'
 import { TypedDataRenderer } from '@/components/artifacts/TypedDataRenderer'
 import { useState } from 'react'
 
@@ -25,6 +25,7 @@ const statusConfig: Record<StreamEventType, { icon: React.ElementType; label: st
   generating_code: { icon: Code, label: 'Writing code...' },
   executing: { icon: Play, label: 'Executing...' },
   iteration_complete: { icon: Check, label: 'Iteration complete' },
+  clarification_required: { icon: MessageCircleQuestion, label: 'Waiting for your input...' },
   completed: { icon: Check, label: 'Done' },
   error: { icon: Bot, label: 'Error' },
   cancelled: { icon: Bot, label: 'Cancelled' },

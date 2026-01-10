@@ -3,6 +3,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Send } from 'lucide-react'
 import { ModelSelector } from './ModelSelector'
+import { cn } from '@/lib/utils'
 
 interface ChatInputProps {
     onSend: (content: string) => void
@@ -11,6 +12,7 @@ interface ChatInputProps {
     selectedModel?: string
     onModelChange?: (model: string) => void
     actions?: React.ReactNode
+    isClarifying?: boolean
 }
 
 export function ChatInput({
@@ -19,7 +21,8 @@ export function ChatInput({
     placeholder,
     selectedModel,
     onModelChange,
-    actions
+    actions,
+    isClarifying
 }: ChatInputProps) {
     const [value, setValue] = useState('')
 
@@ -39,7 +42,10 @@ export function ChatInput({
     }, [handleSend])
 
     return (
-        <div className="flex flex-col w-full border rounded-xl bg-background focus-within:ring-1 focus-within:ring-ring transition-all overflow-hidden shadow-sm">
+        <div className={cn(
+            "flex flex-col w-full border rounded-xl bg-background transition-all overflow-hidden shadow-sm",
+            isClarifying ? "ring-2 ring-primary border-primary/50" : "focus-within:ring-1 focus-within:ring-ring"
+        )}>
             <Textarea
                 value={value}
                 onChange={(e) => setValue(e.target.value)}

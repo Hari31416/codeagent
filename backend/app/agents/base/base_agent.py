@@ -374,6 +374,35 @@ class CodingAgent(BaseAgent):
                 thoughts = response.get("thoughts", "")
                 code = response.get("code", "")
                 final_answer = response.get("final_answer", False)
+                clarification = response.get("clarification", "")
+
+                # Check if agent is requesting clarification from user
+                if clarification and not code:
+                    logger.info(
+                        "Agent requesting clarification from user",
+                        iteration=current_iter,
+                        clarification=clarification[:200],
+                    )
+
+                    # Yield: Awaiting clarification
+                    yield self._create_status(
+                        AgentStatusType.CLARIFICATION_REQUIRED,
+                        f"Iteration {current_iter}: Awaiting user clarification",
+                        iteration=current_iter,
+                        total_iterations=max_iterations,
+                        data={
+                            "thoughts": thoughts,
+                            "clarification": clarification,
+                            "code_history": code_history,
+                        },
+                    )
+
+                    # Store the clarification request for session history
+                    observations.append(f"Clarification requested: {clarification}")
+
+                    # Mark as complete (for this turn) so we don't trigger max iterations error
+                    is_complete = True
+                    break
 
                 # If no code was generated
                 if not code:

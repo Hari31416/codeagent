@@ -16,6 +16,7 @@ interface ChatState {
   currentCode: string | null
   iteration: number
   totalIterations: number
+  pendingClarification: string | null
 }
 
 export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: UseChatOptions) {
@@ -26,6 +27,7 @@ export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: Use
     currentCode: null,
     iteration: 0,
     totalIterations: 0,
+    pendingClarification: null,
   })
   const [error, setError] = useState<Error | null>(null)
 
@@ -133,6 +135,33 @@ export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: Use
           ))
         }
 
+        // Handle clarification request from agent
+        if (event.event_type === 'clarification_required' && event.data) {
+          const clarificationQuestion = event.data.clarification as string
+
+          // Update state with pending clarification
+          setState(prev => ({
+            ...prev,
+            status: 'clarification_required',
+            pendingClarification: clarificationQuestion,
+          }))
+
+          // Update message to show clarification request
+          setMessages(prev => prev.map(msg =>
+            msg.message_id === assistantMessageId
+              ? {
+                ...msg,
+                content: clarificationQuestion,
+                metadata: {
+                  ...msg.metadata,
+                  is_clarification_request: true,
+                  thoughts: event.data?.thoughts as string,
+                }
+              }
+              : msg
+          ))
+        }
+
         // Handle completion
         if (event.type === 'completed' && event.data) {
           // Extract result - backend sends serialized result directly
@@ -180,7 +209,10 @@ export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: Use
             msg.message_id === assistantMessageId
               ? {
                 ...msg,
-                content: assistantContent,
+                // Don't overwrite content if we're in clarification mode unless there's a real result
+                content: (rawResult !== null && rawResult !== undefined) || !msg.metadata?.is_clarification_request
+                  ? assistantContent
+                  : msg.content,
                 artifact_ids: artifactIds,
                 created_at: event.timestamp || new Date().toISOString(),
                 usage: usageStats,
@@ -199,12 +231,23 @@ export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: Use
         }
       }
 
-      setState({
-        status: 'idle',
-        currentThought: null,
-        currentCode: null,
-        iteration: 0,
-        totalIterations: 0,
+      setState(prev => {
+        // If we're awaiting clarification, don't reset to idle
+        if (prev.status === 'clarification_required') {
+          return {
+            ...prev,
+            currentThought: null,
+            currentCode: null,
+          }
+        }
+        return {
+          status: 'idle',
+          currentThought: null,
+          currentCode: null,
+          iteration: 0,
+          totalIterations: 0,
+          pendingClarification: null,
+        }
       })
 
     } catch (e) {
@@ -271,6 +314,7 @@ export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: Use
       currentCode: null,
       iteration: 0,
       totalIterations: 0,
+      pendingClarification: null,
     })
 
     if (sessionId) {
@@ -285,6 +329,8 @@ export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: Use
     sendMessage,
     cancelQuery,
     loadHistory,
-    isProcessing: state.status !== 'idle' && state.status !== 'error',
+    isProcessing: state.status !== 'idle' && state.status !== 'error' && state.status !== 'clarification_required',
+    isAwaitingClarification: state.status === 'clarification_required',
+    pendingClarification: state.pendingClarification,
   }
 }

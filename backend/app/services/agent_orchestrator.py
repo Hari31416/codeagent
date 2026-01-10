@@ -108,6 +108,10 @@ class AgentOrchestrator:
 
             # Execute with streaming
             final_result = None
+            awaiting_clarification = False
+            clarification_payload: dict[str, Any] | None = None
+            clarification_text: str | None = None
+            clarification_thoughts: str | None = None
             async for status in agent.execute_with_workspace(
                 user_prompt=user_query,
                 session_id=str(session_id),
@@ -115,6 +119,19 @@ class AgentOrchestrator:
                 dataframes=dataframes,
                 workspace_tools=workspace_tools,
             ):
+                # If the agent requests user input, stream that event and stop.
+                # Do NOT emit a final "completed" event afterward, otherwise the
+                # frontend will transition out of clarification mode immediately.
+                if status.status_type == AgentStatusType.CLARIFICATION_REQUIRED:
+                    awaiting_clarification = True
+                    if isinstance(status.data, dict):
+                        clarification_payload = status.data
+                        clarification_text = status.data.get("clarification")
+                        clarification_thoughts = status.data.get("thoughts")
+
+                    yield self._status_to_event(status)
+                    break
+
                 # Track final result
                 if status.status_type == AgentStatusType.COMPLETED:
                     final_result = status.data
@@ -143,6 +160,34 @@ class AgentOrchestrator:
                     content=user_query,
                     created_at=query_received_at,
                 )
+
+                # If we're awaiting clarification, persist the clarification prompt
+                # and end the stream without emitting a terminal completion event.
+                if awaiting_clarification:
+                    clarification_content = (
+                        clarification_text
+                        or (clarification_payload or {}).get("question")
+                        or "Clarification required."
+                    )
+                    await self.message_repo.add_message(
+                        conn=conn,
+                        session_id=session_id,
+                        role="assistant",
+                        content=str(clarification_content),
+                        thoughts=(
+                            str(clarification_thoughts)
+                            if clarification_thoughts
+                            else None
+                        ),
+                        artifact_ids=[a["artifact_id"] for a in new_artifacts],
+                        metadata={
+                            "is_clarification_request": True,
+                            "clarification": clarification_text,
+                            "usage": usage_stats,
+                        },
+                    )
+                    return
+
                 # Ensure content is always a string for database storage
                 result_content = ""
                 if final_result:
@@ -376,6 +421,7 @@ class AgentOrchestrator:
             AgentStatusType.GENERATING_CODE: StreamEventType.GENERATING_CODE,
             AgentStatusType.EXECUTING: StreamEventType.EXECUTING,
             AgentStatusType.ITERATION_COMPLETE: StreamEventType.ITERATION_COMPLETE,
+            AgentStatusType.CLARIFICATION_REQUIRED: StreamEventType.CLARIFICATION_REQUIRED,
             AgentStatusType.COMPLETED: StreamEventType.COMPLETED,
             AgentStatusType.ERROR: StreamEventType.ERROR,
         }

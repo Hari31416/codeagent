@@ -1,5 +1,5 @@
 import { Card } from '@/components/ui/card'
-import { Bot, Brain, Code, Play, Check } from 'lucide-react'
+import { Bot, Brain, Code, Play, Check, MessageCircleQuestion } from 'lucide-react'
 import type { StreamEventType } from '@/types/api'
 
 interface TypingIndicatorProps {
@@ -15,6 +15,7 @@ const statusConfig: Record<StreamEventType, { icon: React.ElementType; label: st
   generating_code: { icon: Code, label: 'Writing code...' },
   executing: { icon: Play, label: 'Executing...' },
   iteration_complete: { icon: Check, label: 'Iteration complete' },
+  clarification_required: { icon: MessageCircleQuestion, label: 'Waiting for your input...' },
   completed: { icon: Check, label: 'Done' },
   error: { icon: Bot, label: 'Error' },
   cancelled: { icon: Bot, label: 'Cancelled' },
