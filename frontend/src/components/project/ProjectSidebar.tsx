@@ -18,6 +18,7 @@ interface ProjectSidebarProps {
   onNewSession: (projectId: string) => void
   onDeleteProject: (projectId: string) => void
   lastUpdated?: number
+  collapsed?: boolean
 }
 
 export function ProjectSidebar({
@@ -30,6 +31,7 @@ export function ProjectSidebar({
   onNewSession,
   onDeleteProject,
   lastUpdated,
+  collapsed = false,
 }: ProjectSidebarProps) {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
   const [projectSessions, setProjectSessions] = useState<Record<string, Session[]>>({})
@@ -114,33 +116,36 @@ export function ProjectSidebar({
 
   return (
     <div className="flex flex-col h-full bg-muted/30">
-      <div className="p-4 space-y-2 border-b bg-background/50">
+      <div className={cn("p-4 space-y-2 border-b bg-background/50", collapsed && "p-2")}>
         {(selectedProjectId || projects.length > 0) ? (
           <div className="flex flex-col gap-2">
             <Button
               onClick={() => onNewSession(selectedProjectId || projects[0].project_id)}
-              className="w-full justify-start gap-2 shadow-sm"
+              className={cn("w-full justify-start gap-2 shadow-sm", collapsed && "justify-center px-0")}
+              title={collapsed ? "New Session" : undefined}
             >
               <Plus className="h-4 w-4" />
-              New Session
+              {!collapsed && "New Session"}
             </Button>
             <Button
               onClick={onNewProject}
               variant="outline"
-              className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+              className={cn("w-full justify-start gap-2 text-muted-foreground hover:text-foreground", collapsed && "justify-center px-0")}
+              title={collapsed ? "New Project" : undefined}
             >
               <FolderOpen className="h-4 w-4" />
-              New Project
+              {!collapsed && "New Project"}
             </Button>
           </div>
         ) : (
           <Button
             onClick={onNewProject}
             variant="outline"
-            className="w-full justify-start gap-2"
+              className={cn("w-full justify-start gap-2", collapsed && "justify-center px-0")}
+              title={collapsed ? "New Project" : undefined}
           >
             <Plus className="h-4 w-4" />
-            New Project
+              {!collapsed && "New Project"}
           </Button>
         )}
       </div>
@@ -158,39 +163,45 @@ export function ProjectSidebar({
                 <div
                   className={cn(
                     'group flex items-center justify-between px-3 py-2 text-sm rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground',
-                    isSelected ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
+                    isSelected ? 'bg-accent text-accent-foreground' : 'text-muted-foreground',
+                    collapsed && 'justify-center px-2'
                   )}
                   onClick={() => handleProjectClick(project.project_id)}
+                  title={collapsed ? project.name : undefined}
                 >
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        toggleProject(project.project_id)
-                      }}
-                      className="flex-shrink-0"
-                    >
-                      {isExpanded ? (
-                        <ChevronDown className="h-3 w-3" />
-                      ) : (
-                        <ChevronRight className="h-3 w-3" />
-                      )}
-                    </button>
+                    {!collapsed && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleProject(project.project_id)
+                        }}
+                        className="flex-shrink-0"
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="h-3 w-3" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3" />
+                        )}
+                      </button>
+                    )}
                     <FolderOpen className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate font-medium">{project.name}</span>
+                    {!collapsed && <span className="truncate font-medium">{project.name}</span>}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 flex-shrink-0"
-                    onClick={(e) => handleDeleteProject(e, project.project_id)}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                  {!collapsed && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 flex-shrink-0"
+                      onClick={(e) => handleDeleteProject(e, project.project_id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
 
                 {/* Sessions List */}
-                {isExpanded && (
+                {isExpanded && !collapsed && (
                   <div className="ml-6 space-y-0.5">
                     <Button
                       variant="ghost"

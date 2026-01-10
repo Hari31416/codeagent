@@ -14,6 +14,7 @@ interface ArtifactsSidebarProps {
     onToggle: (isOpen: boolean) => void
     projectId?: string
     onUploadProjectFile?: (file: File) => Promise<void>
+    isOverlay?: boolean
 }
 
 export function ArtifactsSidebar({
@@ -22,7 +23,8 @@ export function ArtifactsSidebar({
     selectedArtifactId,
     onArtifactSelect,
     onToggle,
-    onUploadProjectFile
+    onUploadProjectFile,
+    isOverlay = false
 }: ArtifactsSidebarProps) {
     const [width, setWidth] = useState(400)
     const [isResizing, setIsResizing] = useState(false)
@@ -42,12 +44,13 @@ export function ArtifactsSidebar({
     const resize = useCallback((mouseMoveEvent: MouseEvent) => {
         if (isResizing) {
             const newWidth = document.body.clientWidth - mouseMoveEvent.clientX
-            // Min width 300px, Max width 800px or 50% of screen
-            if (newWidth > 300 && newWidth < Math.min(800, document.body.clientWidth * 0.8)) {
+            // Min width 300px, Max width 800px or 50% of screen (or 90% if overlay)
+            const maxWidth = isOverlay ? document.body.clientWidth * 0.9 : document.body.clientWidth * 0.8
+            if (newWidth > 300 && newWidth < Math.min(800, maxWidth)) {
                 setWidth(newWidth)
             }
         }
-    }, [isResizing])
+    }, [isResizing, isOverlay])
 
     useEffect(() => {
         if (isResizing) {
@@ -111,15 +114,27 @@ export function ArtifactsSidebar({
     }
 
     return (
-        <div
-            ref={sidebarRef}
-            className={cn(
-                "border-l bg-background flex flex-col h-full relative shrink-0",
-                !isResizing && "transition-[width] duration-300 ease-in-out",
-                isOpen ? "" : "border-none"
+        <>
+            {/* Backdrop for overlay mode */}
+            {isOverlay && isOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-40"
+                    onClick={() => onToggle(false)}
+                />
             )}
-            style={{ width: isOpen ? width : 0 }}
-        >
+
+            <div
+                ref={sidebarRef}
+                className={cn(
+                    "bg-background flex flex-col h-full shrink-0",
+                    isOverlay
+                        ? "fixed right-0 top-0 bottom-0 z-50 shadow-xl border-l"
+                        : "border-l relative",
+                    !isResizing && "transition-[width,transform] duration-300 ease-in-out",
+                    isOpen ? "translate-x-0" : isOverlay ? "translate-x-full" : "w-0 border-none"
+                )}
+                style={{ width: isOpen || isOverlay ? width : 0 }}
+            >
             {/* Resize Handle */}
             <div
                 className={cn(
@@ -277,6 +292,7 @@ export function ArtifactsSidebar({
                     )}
                 </div>
             </div>
-        </div>
+            </div>
+        </>
     )
 }

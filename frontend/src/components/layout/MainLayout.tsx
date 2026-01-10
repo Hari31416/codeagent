@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSession } from '@/hooks/useSession'
 import { useProjects } from '@/hooks/useProjects'
 import { useArtifacts } from '@/hooks/useArtifacts'
@@ -19,6 +20,13 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { MoreVertical, FolderOpen } from 'lucide-react'
 
 import { uploadProjectFile } from '@/api/projects'
 
@@ -29,12 +37,30 @@ export function MainLayout() {
     const [isArtifactsOpen, setIsArtifactsOpen] = useState(true)
     const [lastUpdated, setLastUpdated] = useState(Date.now())
 
+    // Responsive breakpoints
+    const isDesktop = useMediaQuery("(min-width: 1024px)")
+    const isMobile = useMediaQuery("(max-width: 768px)")
+
+    const isSidebarCollapsed = !isDesktop
+
+    // Artifacts drawer mode
+    const isArtifactsOverlay = !useMediaQuery("(min-width: 1100px)")
+
+    // Handle artifacts panel: close when switching to small screen if it was open
+    useEffect(() => {
+        if (isArtifactsOverlay && isArtifactsOpen) {
+            if (window.innerWidth < 768) setIsArtifactsOpen(false)
+        }
+    }, [isArtifactsOverlay])
+
+
     // Project creation dialog state
     const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false)
     const [newProjectName, setNewProjectName] = useState('')
     const [newProjectDescription, setNewProjectDescription] = useState('')
 
-    const { createSession } = useSession(currentSessionId || undefined)
+    // Get session object to display name
+    const { createSession, session } = useSession(currentSessionId || undefined)
     const {
         projects,
         selectedProjectId,
@@ -125,9 +151,11 @@ export function MainLayout() {
             {/* Project Sidebar */}
             <div className={cn(
                 "transition-all duration-300 ease-in-out overflow-hidden bg-muted/30 flex flex-col",
-                isSidebarOpen ? "w-[280px] border-r" : "w-0 border-none"
+                isSidebarOpen
+                    ? (isSidebarCollapsed ? "w-[60px] border-r" : "w-[280px] border-r")
+                    : "w-0 border-none"
             )}>
-                <div className="w-[280px] h-full">
+                <div className={cn("h-full", isSidebarCollapsed ? "w-[60px]" : "w-[280px]")}>
                     <ProjectSidebar
                         projects={projects}
                         selectedProjectId={selectedProjectId}
@@ -138,6 +166,7 @@ export function MainLayout() {
                         onNewSession={handleNewSession}
                         onDeleteProject={deleteProject}
                         lastUpdated={lastUpdated}
+                        collapsed={isSidebarCollapsed}
                     />
                 </div>
             </div>
@@ -171,26 +200,100 @@ export function MainLayout() {
                         >
                             <Plus className="h-4 w-4" />
                         </Button>
-                        <span className="font-medium text-sm text-muted-foreground ml-2">
-                            {currentSessionId ? "Chat Session" : "Select or Create Project"}
-                        </span>
+                        <div className="flex flex-col">
+                            <div className="flex items-center text-sm font-medium text-foreground">
+                                {currentSessionId ? (
+                                    isMobile ? (
+                                        // Mobile: Show only session name
+                                        <span className="truncate max-w-[150px]">
+                                            {session?.name || 'Chat Session'}
+                                        </span>
+                                    ) : (
+                                        // Desktop: Project > Session
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                            <span className="truncate max-w-[150px]">
+                                                {projects.find(p => p.project_id === selectedProjectId)?.name || 'Project'}
+                                            </span>
+                                            <span>/</span>
+                                            <span className="text-foreground truncate max-w-[200px]">
+                                                {session?.name || 'Chat Session'}
+                                            </span>
+                                        </div>
+                                    )
+                                ) : (
+                                    <span className="text-muted-foreground">Select or Create Project</span>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Button
-                            variant={isArtifactsOpen ? "secondary" : "ghost"}
-                            size="sm"
-                            className="gap-2"
-                            onClick={() => setIsArtifactsOpen(!isArtifactsOpen)}
-                        >
-                            <PanelRight className="h-4 w-4" />
-                            <span className="hidden sm:inline">Artifacts</span>
-                            {artifacts.length > 0 && (
-                                <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full ml-1">
-                                    {artifacts.length}
-                                </span>
-                            )}
-                        </Button>
+                        {/* Unified Actions Menu for Mobile */}
+                        {isMobile ? (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon">
+                                        <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => {
+                                        if (selectedProjectId) {
+                                            handleNewSession(selectedProjectId)
+                                        } else if (projects.length > 0) {
+                                            handleNewSession(projects[0].project_id)
+                                        } else {
+                                            handleNewProject()
+                                        }
+                                    }}>
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        <span>New Session</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={handleNewProject}>
+                                        <FolderOpen className="mr-2 h-4 w-4" />
+                                        <span>New Project</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setIsArtifactsOpen(!isArtifactsOpen)}>
+                                        <PanelRight className="mr-2 h-4 w-4" />
+                                        <span>{isArtifactsOpen ? "Hide" : "Show"} Artifacts</span>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        ) : (
+                            // Desktop Actions
+                            <>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        if (selectedProjectId) {
+                                            handleNewSession(selectedProjectId)
+                                        } else if (projects.length > 0) {
+                                            handleNewSession(projects[0].project_id)
+                                        } else {
+                                            handleNewProject()
+                                        }
+                                    }}
+                                    title={selectedProjectId || projects.length > 0 ? "New Session" : "New Project"}
+                                >
+                                    <Plus className="h-4 w-4" />
+                                </Button>
+                                    <Button
+                                        variant={isArtifactsOpen ? "secondary" : "ghost"}
+                                        size="sm"
+                                        className="gap-2"
+                                        onClick={() => setIsArtifactsOpen(!isArtifactsOpen)}
+                                    >
+                                        <PanelRight className="h-4 w-4" />
+                                        <span className="hidden sm:inline">Artifacts</span>
+                                        {artifacts.length > 0 && (
+                                            <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full ml-1">
+                                                {artifacts.length}
+                                            </span>
+                                        )}
+                                    </Button>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -198,12 +301,14 @@ export function MainLayout() {
                     {/* Chat area */}
                     <div className="flex-1 flex flex-col min-w-0">
                         {currentSessionId ? (
-                            <ChatContainer
-                                sessionId={currentSessionId}
-                                onArtifactSelect={handleArtifactSelect}
-                                onArtifactCreated={refreshArtifacts}
-                                onSessionUpdate={() => setLastUpdated(Date.now())}
-                            />
+                            <div className="mx-auto w-full max-w-[900px] h-full">
+                                <ChatContainer
+                                    sessionId={currentSessionId}
+                                    onArtifactSelect={handleArtifactSelect}
+                                    onArtifactCreated={refreshArtifacts}
+                                    onSessionUpdate={() => setLastUpdated(Date.now())}
+                                />
+                            </div>
                         ) : (
                             <div className="flex-1 flex items-center justify-center text-muted-foreground">
                                 <div className="text-center">
@@ -240,6 +345,7 @@ export function MainLayout() {
                         onToggle={setIsArtifactsOpen}
                         projectId={selectedProjectId || undefined}
                         onUploadProjectFile={handleUploadProjectFile}
+                        isOverlay={isArtifactsOverlay}
                     />
                 </div>
             </div>

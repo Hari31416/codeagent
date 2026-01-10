@@ -39,6 +39,22 @@
     --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
     --sidebar-border: oklch(0.923 0.003 48.717);
     --sidebar-ring: oklch(0.709 0.01 56.259);
+/* Responsive Spacing & Typography */
+  --padding-page: 1rem;
+  --font-site-title: 1.125rem;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --padding-page: 1.5rem;
+    --font-site-title: 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --padding-page: 2rem;
+  }
 }
 
 .dark {

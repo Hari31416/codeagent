@@ -21,7 +21,7 @@ export function CodeViewer({ code, language = 'python' }: CodeViewerProps) {
   }, [code])
 
   return (
-    <Card className="relative overflow-hidden border bg-[#1e1e1e] text-zinc-50">
+    <Card className="relative overflow-hidden border bg-[#1e1e1e] text-zinc-50 group">
       <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-700 bg-[#252526]">
         <span className="text-xs font-medium text-zinc-400 uppercase font-mono">
           {language}
@@ -29,7 +29,7 @@ export function CodeViewer({ code, language = 'python' }: CodeViewerProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-50"
+          className="h-6 w-6 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-50 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={handleCopy}
         >
           {copied ? (

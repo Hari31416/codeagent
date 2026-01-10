@@ -4,8 +4,9 @@ import type { StreamEventType } from '@/types/api'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { CollapsibleCode } from '@/components/chat/CollapsibleCode'
-import { User, Bot, Brain, Code, Play, Check } from 'lucide-react'
+import { User, Bot, Brain, Code, Play, Check, ChevronRight, ChevronDown } from 'lucide-react'
 import { TypedDataRenderer } from '@/components/artifacts/TypedDataRenderer'
+import { useState } from 'react'
 
 interface MessageProps {
   message: MessageType
@@ -91,17 +92,9 @@ export function Message({ message, onArtifactClick, processingState }: MessagePr
                       </Card>
                     )}
 
-                    {/* Thought */}
+                    {/* Thought (Collapsible) */}
                     {(iter.thought || iter.thoughts) && (
-                      <Card className="p-4 bg-muted/40 border-border/50 text-sm shadow-sm">
-                        <div className="flex items-center gap-2 mb-2 text-muted-foreground">
-                          <div className="h-1 w-1 rounded-full bg-primary/50" />
-                          <span className="font-semibold text-xs uppercase tracking-wider">Thought</span>
-                        </div>
-                        <div className="text-muted-foreground leading-relaxed">
-                          {iter.thought || iter.thoughts}
-                        </div>
-                      </Card>
+                      <ThoughtAccordion thought={iter.thought || iter.thoughts || ''} />
                     )}
 
                     {/* Code */}
@@ -142,15 +135,7 @@ export function Message({ message, onArtifactClick, processingState }: MessagePr
             <>
               {/* Thoughts (for assistant messages) */}
               {message.thoughts && !isUser && (
-                <Card className="p-4 bg-muted/40 border-border/50 text-sm shadow-sm text-muted-foreground">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-1 w-1 rounded-full bg-primary/50" />
-                    <span className="font-medium text-xs uppercase tracking-wider">Thinking</span>
-                  </div>
-                  <div className="leading-relaxed">
-                    {message.thoughts}
-                  </div>
-                </Card>
+                  <ThoughtAccordion thought={message.thoughts || ''} />
               )}
 
               {/* Code block */}
@@ -252,5 +237,29 @@ export function Message({ message, onArtifactClick, processingState }: MessagePr
         </div>
       </div>
     </div>
+  )
+}
+
+function ThoughtAccordion({ thought }: { thought: string }) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <Card className="bg-muted/30 border-border/40 shadow-none overflow-hidden hover:bg-muted/40 transition-colors">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors text-left"
+      >
+        {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        <span className="font-semibold uppercase tracking-wider">Thought Process</span>
+      </button>
+
+      {isOpen && (
+        <div className="px-3 pb-3 pt-0 text-sm text-muted-foreground leading-relaxed animate-in slide-in-from-top-1 duration-200">
+          <div className="border-t border-border/40 pt-2 mt-1">
+            {thought}
+          </div>
+        </div>
+      )}
+    </Card>
   )
 }

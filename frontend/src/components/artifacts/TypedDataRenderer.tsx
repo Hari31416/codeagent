@@ -1,5 +1,7 @@
 import { CodeViewer } from './CodeViewer'
 import { Card } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog'
+import { ZoomIn } from 'lucide-react'
 import type { TypedData } from '@/types/api'
 
 interface TypedDataRendererProps {
@@ -71,14 +73,33 @@ export function TypedDataRenderer({ data, showAll = false }: TypedDataRendererPr
             )
 
         case 'image':
+        case 'image':
+            const imageUrl = `data:image/${data.metadata?.format || 'png'};base64,${data.data}`
             return (
-                <Card className="p-2 my-2 inline-block">
-                    <img
-                        src={`data:image/${data.metadata?.format || 'png'};base64,${data.data}`}
-                        alt="Generated output"
-                        className="max-h-[500px] max-w-full rounded"
-                    />
-                </Card>
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Card className="p-2 my-2 inline-block cursor-zoom-in hover:ring-2 hover:ring-primary/50 transition-all group relative overflow-hidden">
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 z-10">
+                                <ZoomIn className="text-white drop-shadow-md w-8 h-8" />
+                            </div>
+                            <img
+                                src={imageUrl}
+                                alt="Generated output"
+                                className="max-h-[500px] max-w-full rounded"
+                            />
+                        </Card>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-[90vw] max-h-[90vh] w-fit p-0 border-none bg-transparent shadow-none overflow-hidden flex items-center justify-center">
+                        <div className="sr-only">
+                            <DialogTitle>Image Preview</DialogTitle>
+                        </div>
+                        <img
+                            src={imageUrl}
+                            alt="Full screen preview"
+                            className="max-w-full max-h-[90vh] rounded-md shadow-2xl"
+                        />
+                    </DialogContent>
+                </Dialog>
             )
 
         case 'plotly':
