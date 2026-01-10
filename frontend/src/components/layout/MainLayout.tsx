@@ -39,6 +39,27 @@ export function MainLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true)
     const [isArtifactsOpen, setIsArtifactsOpen] = useState(true)
     const [lastUpdated, setLastUpdated] = useState(Date.now())
+    const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('theme') as 'light' | 'dark'
+            if (saved) return saved
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        }
+        return 'light'
+    })
+
+    useEffect(() => {
+        if (theme === 'dark') {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+        localStorage.setItem('theme', theme)
+    }, [theme])
+
+    const toggleTheme = useCallback(() => {
+        setTheme(prev => prev === 'light' ? 'dark' : 'light')
+    }, [])
 
     // Export state
     const [isExportModalOpen, setIsExportModalOpen] = useState(false)
@@ -171,6 +192,7 @@ export function MainLayout() {
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // Sidebar toggle
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
                 e.preventDefault()
                 if (e.shiftKey) {
@@ -179,11 +201,34 @@ export function MainLayout() {
                     setIsSidebarOpen(prev => !prev)
                 }
             }
+
+            // New Session
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
+                e.preventDefault()
+                if (selectedProjectId) {
+                    handleNewSession(selectedProjectId)
+                } else if (projects.length > 0) {
+                    handleNewSession(projects[0].project_id)
+                }
+            }
+
+            // Toggle Dark Mode
+            if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'l') {
+                e.preventDefault()
+                toggleTheme()
+            }
+
+            // Focus Chat Input
+            if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+                e.preventDefault()
+                const chatInput = document.querySelector('textarea')
+                if (chatInput) chatInput.focus()
+            }
         }
 
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [])
+    }, [selectedProjectId, projects, handleNewSession, toggleTheme])
 
     return (
         <div className="flex h-screen bg-background overflow-hidden">
@@ -327,18 +372,14 @@ export function MainLayout() {
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={() => {
-                                        if (selectedProjectId) {
-                                            handleNewSession(selectedProjectId)
-                                        } else if (projects.length > 0) {
-                                            handleNewSession(projects[0].project_id)
-                                        } else {
-                                            handleNewProject()
-                                        }
-                                    }}
-                                    title={selectedProjectId || projects.length > 0 ? "New Session" : "New Project"}
+                                        onClick={toggleTheme}
+                                        title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
                                 >
-                                    <Plus className="h-4 w-4" />
+                                        {theme === 'light' ? (
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-moon"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></svg>
+                                        ) : (
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-sun"><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M22 12h2" /><path d="m4.93 19.07 1.41-1.41" /><path d="m17.66 6.34 1.41-1.41" /></svg>
+                                        )}
                                 </Button>
                                     <Button
                                         variant={isArtifactsOpen ? "secondary" : "ghost"}
