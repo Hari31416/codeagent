@@ -83,7 +83,11 @@ class Settings(BaseSettings):
     redis_db: int = 0
     redis_default_ttl: int = 3600  # Default TTL in seconds (60 minutes)
     redis_max_connections: int = 10
-    result_cache_ttl: int = 3600  # Result cache TTL in seconds (60 minutes)
+    redis_pool_size_state: int = 20
+    redis_pool_size_presigned: int = 5
+    redis_compression_threshold: int = 2048
+    presigned_url_cache_ttl_pct: float = 0.5
+    cache_warming_enabled: bool = True
 
     @computed_field
     @property

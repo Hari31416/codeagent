@@ -4,6 +4,7 @@ CodingAgent Backend Application
 Main FastAPI application with all routes and middleware.
 """
 
+import asyncio
 from contextlib import asynccontextmanager
 
 # Import routers
@@ -12,6 +13,7 @@ from app.config import settings
 from app.core.cache import CacheService
 from app.db.init_db import init_database
 from app.db.pool import DatabasePool
+from app.services.cache_warmer import start_background_warming, stop_background_warming
 from app.shared.logging import get_logger
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,10 +43,18 @@ async def lifespan(app: FastAPI):
     await CacheService.get_client()
     logger.info("Redis cache initialized")
 
+    if settings.cache_warming_enabled:
+        asyncio.create_task(start_background_warming())
+        logger.info("Cache warmer started in background")
+
     yield
 
     # Shutdown
     logger.info("Shutting down CodingAgent backend")
+
+    if settings.cache_warming_enabled:
+        await stop_background_warming()
+        logger.info("Cache warmer stopped")
 
     # Close database pool
     await DatabasePool.close()
@@ -96,4 +106,17 @@ async def health():
         "status": "healthy",
         "version": settings.app_version,
         "environment": settings.environment,
+    }
+
+
+@app.get("/health/cache")
+async def cache_health():
+    """Cache health and metrics endpoint."""
+    from app.core.cache import CacheService
+
+    metrics = CacheService.get_metrics()
+
+    return {
+        "status": "healthy",
+        "metrics": metrics,
     }

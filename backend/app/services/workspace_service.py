@@ -1,12 +1,14 @@
 """
 Workspace service - manages MinIO workspaces for sessions.
 
-Uses the existing StorageService from app/core/storage.py
+Uses existing StorageService from app/core/storage.py
 """
 
+from datetime import timedelta
 from typing import BinaryIO
 from uuid import UUID
 
+from app.core.cache import cache_presigned
 from app.core.storage import get_storage_service
 from app.shared.logging import get_logger
 
@@ -39,13 +41,16 @@ class WorkspaceService:
         content_type: str = "application/octet-stream",
     ) -> str:
         """
-        Upload a file to the session workspace.
+        Upload a file to session workspace.
 
         Returns:
             The MinIO object key
         """
         object_key = f"{self.get_workspace_prefix(session_id)}{file_name}"
         self.storage.upload(object_key, data, content_type)
+
+        await cache_presigned.delete_pattern(f"presigned:url:{object_key}:*")
+
         logger.info(
             "file_uploaded_to_workspace",
             session_id=str(session_id),
@@ -61,13 +66,16 @@ class WorkspaceService:
         content_type: str = "application/octet-stream",
     ) -> str:
         """
-        Upload a file to the project's shared workspace.
+        Upload a file to project's shared workspace.
 
         Returns:
             The MinIO object key
         """
         object_key = f"{self.get_project_workspace_prefix(project_id)}{file_name}"
         self.storage.upload(object_key, data, content_type)
+
+        await cache_presigned.delete_pattern(f"presigned:url:{object_key}:*")
+
         logger.info(
             "file_uploaded_to_project_workspace",
             project_id=str(project_id),
@@ -100,12 +108,23 @@ class WorkspaceService:
         expires_hours: int = 1,
     ) -> str:
         """Get a presigned URL for temporary file access."""
-        from datetime import timedelta
-
+        expires_seconds = expires_hours * 3600
         object_key = f"{self.get_workspace_prefix(session_id)}{file_name}"
-        return self.storage.get_presigned_url(
-            object_key, expires=timedelta(hours=expires_hours)
+
+        cached_url = await cache_presigned.get_presigned_url(
+            object_key, expires_seconds
         )
+        if cached_url:
+            logger.debug("presigned_url_cache_hit", object_key=object_key)
+            return cached_url
+
+        url = self.storage.get_presigned_url(
+            object_key, expires=timedelta(seconds=expires_seconds)
+        )
+
+        await cache_presigned.set_presigned_url(object_key, expires_seconds, url)
+
+        return url
 
     async def get_project_presigned_url(
         self,
@@ -114,12 +133,23 @@ class WorkspaceService:
         expires_hours: int = 1,
     ) -> str:
         """Get a presigned URL for temporary file access from project workspace."""
-        from datetime import timedelta
-
+        expires_seconds = expires_hours * 3600
         object_key = f"{self.get_project_workspace_prefix(project_id)}{file_name}"
-        return self.storage.get_presigned_url(
-            object_key, expires=timedelta(hours=expires_hours)
+
+        cached_url = await cache_presigned.get_presigned_url(
+            object_key, expires_seconds
         )
+        if cached_url:
+            logger.debug("presigned_url_cache_hit", object_key=object_key)
+            return cached_url
+
+        url = self.storage.get_presigned_url(
+            object_key, expires=timedelta(seconds=expires_seconds)
+        )
+
+        await cache_presigned.set_presigned_url(object_key, expires_seconds, url)
+
+        return url
 
     async def list_workspace_files(
         self,
@@ -144,8 +174,11 @@ class WorkspaceService:
         """Delete all files in a session's workspace. Returns count deleted."""
         prefix = self.get_workspace_prefix(session_id)
         files = self.storage.list_objects(prefix=prefix, recursive=True)
+
         for file_info in files:
             self.storage.delete(file_info["name"])
+            await cache_presigned.delete_pattern(f"presigned:url:{file_info['name']}:*")
+
         logger.info(
             "workspace_deleted",
             session_id=str(session_id),
@@ -160,8 +193,11 @@ class WorkspaceService:
         """Delete all files in a project's shared workspace. Returns count deleted."""
         prefix = self.get_project_workspace_prefix(project_id)
         files = self.storage.list_objects(prefix=prefix, recursive=True)
+
         for file_info in files:
             self.storage.delete(file_info["name"])
+            await cache_presigned.delete_pattern(f"presigned:url:{file_info['name']}:*")
+
         logger.info(
             "project_workspace_deleted",
             project_id=str(project_id),

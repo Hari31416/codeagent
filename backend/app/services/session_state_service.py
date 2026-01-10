@@ -1,13 +1,13 @@
 """
 Session state service using Redis.
 
-Uses the existing CacheService from app/core/cache.py
+Uses the existing CacheService from app/core/cache_state.py with state pool
 """
 
 from typing import Any
 from uuid import UUID
 
-from app.core.cache import cache  # Singleton CacheService instance
+from app.core.cache import cache_state
 from app.shared.logging import get_logger
 
 logger = get_logger(__name__)
@@ -57,7 +57,7 @@ class SessionStateService:
         Uses Redis SETNX for atomic operation.
         """
         key = f"{self.BUSY_KEY_PREFIX}{session_id}"
-        client = await cache.get_client()
+        client = await cache_state.get_client()
         # SETNX + EXPIRE atomically
         acquired = await client.set(key, "1", nx=True, ex=self.LOCK_TTL)
         if acquired:
@@ -69,13 +69,13 @@ class SessionStateService:
     async def release_lock(self, session_id: UUID) -> None:
         """Release the busy lock for a session."""
         key = f"{self.BUSY_KEY_PREFIX}{session_id}"
-        await cache.delete(key)
+        await cache_state.delete(key)
         logger.debug("session_lock_released", session_id=str(session_id))
 
     async def is_busy(self, session_id: UUID) -> bool:
         """Check if a session is currently busy."""
         key = f"{self.BUSY_KEY_PREFIX}{session_id}"
-        return await cache.exists(key)
+        return await cache_state.exists(key)
 
     async def append_console_output(
         self,
@@ -84,7 +84,7 @@ class SessionStateService:
     ) -> None:
         """Append output to the console buffer for real-time streaming."""
         key = f"{self.CONSOLE_KEY_PREFIX}{session_id}"
-        client = await cache.get_client()
+        client = await cache_state.get_client()
         await client.rpush(key, output)
         await client.expire(key, self.CONSOLE_TTL)
 
@@ -96,14 +96,14 @@ class SessionStateService:
     ) -> list[str]:
         """Get console output from the buffer."""
         key = f"{self.CONSOLE_KEY_PREFIX}{session_id}"
-        client = await cache.get_client()
+        client = await cache_state.get_client()
         outputs = await client.lrange(key, start, end)
         return outputs
 
     async def clear_console_output(self, session_id: UUID) -> None:
         """Clear the console output buffer."""
         key = f"{self.CONSOLE_KEY_PREFIX}{session_id}"
-        await cache.delete(key)
+        await cache_state.delete(key)
 
     async def set_state(
         self,
@@ -113,9 +113,9 @@ class SessionStateService:
     ) -> None:
         """Store session state as JSON."""
         key = f"{self.STATE_KEY_PREFIX}{session_id}"
-        await cache.set_json(key, state, ttl_seconds=ttl)
+        await cache_state.set_json(key, state, ttl_seconds=ttl)
 
     async def get_state(self, session_id: UUID) -> dict[str, Any] | None:
         """Retrieve session state."""
         key = f"{self.STATE_KEY_PREFIX}{session_id}"
-        return await cache.get_json(key)
+        return await cache_state.get_json(key)

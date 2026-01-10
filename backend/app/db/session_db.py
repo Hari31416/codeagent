@@ -6,6 +6,7 @@ Uses asyncpg for async PostgreSQL operations.
 from typing import Any
 from uuid import UUID
 
+from app.core.cache import cache
 from app.shared.logging import get_logger
 from asyncpg import Connection
 
@@ -113,7 +114,7 @@ class ProjectRepository:
         updates.append("updated_at = NOW()")
         query = f"""
             UPDATE projects
-            SET {', '.join(updates)}
+            SET {", ".join(updates)}
             WHERE project_id = $1
             RETURNING project_id, user_id, name, description, created_at, updated_at, metadata
         """
@@ -273,7 +274,7 @@ class SessionRepository:
         updates.append("updated_at = NOW()")
         query = f"""
             UPDATE sessions
-            SET {', '.join(updates)}
+            SET {", ".join(updates)}
             WHERE session_id = $1
             RETURNING session_id, user_id, project_id, workspace_prefix, name, created_at, updated_at, metadata
         """
@@ -407,6 +408,11 @@ class ArtifactRepository:
             file_name=file_name,
         )
 
+        if session_id:
+            await cache.delete_pattern(f"artifacts:session:{session_id}")
+        if project_id:
+            await cache.delete_pattern(f"artifacts:project:{project_id}")
+
         return dict(row)
 
     async def get_artifact(
@@ -431,6 +437,12 @@ class ArtifactRepository:
         session_id: UUID,
     ) -> list[dict[str, Any]]:
         """Get all artifacts for a session."""
+        cache_key = f"artifacts:session:{session_id}"
+        cached_artifacts = await cache.get_json(cache_key)
+        if cached_artifacts:
+            logger.debug("artifacts_by_session_cache_hit", session_id=str(session_id))
+            return cached_artifacts
+
         rows = await conn.fetch(
             """
             SELECT artifact_id, session_id, project_id, message_id, file_name, file_type, mime_type, size_bytes, minio_object_key, created_at, metadata
@@ -440,7 +452,11 @@ class ArtifactRepository:
             """,
             session_id,
         )
-        return [dict(row) for row in rows]
+        artifacts = [dict(row) for row in rows]
+
+        await cache.set_json(cache_key, artifacts, ttl_seconds=120)
+
+        return artifacts
 
     async def get_artifacts_by_message(
         self,
@@ -465,6 +481,12 @@ class ArtifactRepository:
         project_id: UUID,
     ) -> list[dict[str, Any]]:
         """Get all project-level artifacts (shared across all sessions in project)."""
+        cache_key = f"artifacts:project:{project_id}"
+        cached_artifacts = await cache.get_json(cache_key)
+        if cached_artifacts:
+            logger.debug("artifacts_by_project_cache_hit", project_id=str(project_id))
+            return cached_artifacts
+
         rows = await conn.fetch(
             """
             SELECT artifact_id, session_id, project_id, message_id, file_name, file_type, mime_type, size_bytes, minio_object_key, created_at, metadata
@@ -474,7 +496,11 @@ class ArtifactRepository:
             """,
             project_id,
         )
-        return [dict(row) for row in rows]
+        artifacts = [dict(row) for row in rows]
+
+        await cache.set_json(cache_key, artifacts, ttl_seconds=120)
+
+        return artifacts
 
     async def get_project_and_session_artifacts(
         self,
@@ -501,6 +527,8 @@ class ArtifactRepository:
         artifact_id: UUID,
     ) -> bool:
         """Delete an artifact record."""
+        artifact = await self.get_artifact(conn, artifact_id)
+
         result = await conn.execute(
             "DELETE FROM artifacts WHERE artifact_id = $1",
             artifact_id,
@@ -508,6 +536,17 @@ class ArtifactRepository:
         deleted = result.split()[-1] == "1"
         if deleted:
             logger.info("artifact_deleted", artifact_id=str(artifact_id))
+
+            if artifact:
+                if artifact.get("session_id"):
+                    await cache.delete_pattern(
+                        f"artifacts:session:{artifact['session_id']}"
+                    )
+                if artifact.get("project_id"):
+                    await cache.delete_pattern(
+                        f"artifacts:project:{artifact['project_id']}"
+                    )
+
         return deleted
 
 
@@ -569,6 +608,8 @@ class MessageRepository:
 
         logger.debug("message_added", message_id=str(row["message_id"]), role=role)
 
+        await cache.delete_pattern(f"history:{session_id}:*")
+
         return dict(row)
 
     async def get_messages_by_session(
@@ -579,6 +620,12 @@ class MessageRepository:
         offset: int = 0,
     ) -> list[dict[str, Any]]:
         """Get chat history for a session (for replay feature)."""
+        cache_key = f"history:{session_id}:{limit}:{offset}"
+        cached_messages = await cache.get_json(cache_key)
+        if cached_messages:
+            logger.debug("session_history_cache_hit", session_id=str(session_id))
+            return cached_messages
+
         rows = await conn.fetch(
             """
             SELECT message_id, session_id, role, content, code, thoughts, artifact_ids, execution_logs, is_error, created_at, metadata
@@ -591,7 +638,11 @@ class MessageRepository:
             limit,
             offset,
         )
-        return [dict(row) for row in rows]
+        messages = [dict(row) for row in rows]
+
+        await cache.set_json(cache_key, messages, ttl_seconds=300)
+
+        return messages
 
     async def get_message(
         self,
