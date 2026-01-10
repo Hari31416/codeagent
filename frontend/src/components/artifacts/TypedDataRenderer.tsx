@@ -19,13 +19,27 @@ export function TypedDataRenderer({ data }: TypedDataRendererProps) {
             const tableData = data.data as { headers: string[], rows: any[][] }
             if (!tableData?.headers) return <div className="text-sm text-muted-foreground">Invalid table data</div>
 
+            const formatCell = (value: any): string => {
+                if (typeof value === 'number') {
+                    if (Number.isInteger(value)) return String(value)
+                    return value.toFixed(2)
+                }
+                const str = String(value)
+                if (!isNaN(Number(str)) && str.trim() !== '') {
+                    const num = parseFloat(str)
+                    if (Number.isInteger(num)) return str
+                    return num.toFixed(2)
+                }
+                return str
+            }
+
             return (
                 <Card className="overflow-auto max-h-[400px] my-2">
-                    <table className="w-full text-sm">
-                        <thead className="sticky top-0 bg-muted">
+                    <table className="w-full text-sm font-mono">
+                        <thead className="sticky top-0 bg-muted z-10 shadow-sm">
                             <tr>
                                 {tableData.headers.map((header, i) => (
-                                    <th key={i} className="px-4 py-2 text-left font-medium border-b">
+                                    <th key={i} className="px-4 py-2.5 text-left font-semibold text-muted-foreground border-b select-none">
                                         {header}
                                     </th>
                                 ))}
@@ -33,17 +47,17 @@ export function TypedDataRenderer({ data }: TypedDataRendererProps) {
                         </thead>
                         <tbody>
                             {tableData.rows.slice(0, 50).map((row, i) => (
-                                <tr key={i} className="hover:bg-muted/50">
+                                <tr key={i} className="even:bg-muted/30 hover:bg-muted/50 transition-colors">
                                     {row.map((cell, j) => (
-                                        <td key={j} className="px-4 py-2 border-b whitespace-nowrap">
-                                            {String(cell)}
+                                        <td key={j} className="px-4 py-2 border-b border-muted/20 whitespace-nowrap text-foreground/90">
+                                            {formatCell(cell)}
                                         </td>
                                     ))}
                                 </tr>
                             ))}
                         </tbody>
                     </table>
-                    <div className="p-2 text-xs text-muted-foreground">
+                    <div className="p-2 text-xs text-center text-muted-foreground border-t bg-muted/20">
                         {data.metadata?.rows ? `${data.metadata.rows} rows` : ''}
                         {tableData.rows.length > 50 ? ' (showing first 50)' : ''}
                     </div>

@@ -158,8 +158,16 @@ export function MainLayout() {
                         <Button
                             variant="ghost"
                             size="icon"
-                            onClick={handleNewProject}
-                            title="New Project"
+                            onClick={() => {
+                                if (selectedProjectId) {
+                                    handleNewSession(selectedProjectId)
+                                } else if (projects.length > 0) {
+                                    handleNewSession(projects[0].project_id)
+                                } else {
+                                    handleNewProject()
+                                }
+                            }}
+                            title={selectedProjectId || projects.length > 0 ? "New Session" : "New Project"}
                         >
                             <Plus className="h-4 w-4" />
                         </Button>

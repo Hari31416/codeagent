@@ -114,11 +114,35 @@ export function ProjectSidebar({
 
   return (
     <div className="flex flex-col h-full bg-muted/30">
-      <div className="p-4 space-y-2">
-        <Button onClick={onNewProject} className="w-full justify-start gap-2">
-          <Plus className="h-4 w-4" />
-          New Project
-        </Button>
+      <div className="p-4 space-y-2 border-b bg-background/50">
+        {(selectedProjectId || projects.length > 0) ? (
+          <div className="flex flex-col gap-2">
+            <Button
+              onClick={() => onNewSession(selectedProjectId || projects[0].project_id)}
+              className="w-full justify-start gap-2 shadow-sm"
+            >
+              <Plus className="h-4 w-4" />
+              New Session
+            </Button>
+            <Button
+              onClick={onNewProject}
+              variant="outline"
+              className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <FolderOpen className="h-4 w-4" />
+              New Project
+            </Button>
+          </div>
+        ) : (
+          <Button
+            onClick={onNewProject}
+            variant="outline"
+            className="w-full justify-start gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            New Project
+          </Button>
+        )}
       </div>
 
       <div className="flex-1 overflow-auto p-2">

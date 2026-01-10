@@ -22,7 +22,6 @@ export function ArtifactsSidebar({
     selectedArtifactId,
     onArtifactSelect,
     onToggle,
-    projectId,
     onUploadProjectFile
 }: ArtifactsSidebarProps) {
     const [width, setWidth] = useState(400)
@@ -96,6 +95,18 @@ export function ArtifactsSidebar({
             } finally {
                 setIsUploading(false)
             }
+        }
+    }
+
+    const handleDownload = async (e: React.MouseEvent, artifact: Artifact) => {
+        e.stopPropagation()
+        if (artifact.presigned_url) {
+            const link = document.createElement('a')
+            link.href = artifact.presigned_url
+            link.download = artifact.file_name
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
         }
     }
 
@@ -226,7 +237,8 @@ export function ArtifactsSidebar({
                                                         artifact={artifact}
                                                         isSelected={false}
                                                         onClick={() => onArtifactSelect(artifact.artifact_id)}
-                                                    // Optional: add visual distinction for project files
+                                                        onDownload={(e) => handleDownload(e, artifact)}
+                                                        onExpand={(e) => { e.stopPropagation(); onArtifactSelect(artifact.artifact_id) }}
                                                     />
                                                 ))
                                             )}
@@ -253,6 +265,8 @@ export function ArtifactsSidebar({
                                                     artifact={artifact}
                                                     isSelected={false}
                                                     onClick={() => onArtifactSelect(artifact.artifact_id)}
+                                                    onDownload={(e) => handleDownload(e, artifact)}
+                                                    onExpand={(e) => { e.stopPropagation(); onArtifactSelect(artifact.artifact_id) }}
                                                 />
                                             ))
                                         )}

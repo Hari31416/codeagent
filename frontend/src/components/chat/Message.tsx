@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils'
 import type { Message as MessageType } from '@/types/message'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CodeViewer } from '@/components/artifacts/CodeViewer'
+import { CollapsibleCode } from '@/components/chat/CollapsibleCode'
 import { User, Bot } from 'lucide-react'
 import { TypedDataRenderer } from '@/components/artifacts/TypedDataRenderer'
 
@@ -43,19 +43,21 @@ export function Message({ message, onArtifactClick }: MessageProps) {
                 </div>
 
                 {/* Thought */}
-                {iter.thought && (
-                  <Card className="p-3 bg-muted/30 text-sm">
-                    <span className="font-semibold text-muted-foreground block mb-1">Thought</span>
-                    {iter.thought}
+                {(iter.thought || iter.thoughts) && (
+                  <Card className="p-4 bg-muted/40 border-border/50 text-sm shadow-sm">
+                    <div className="flex items-center gap-2 mb-2 text-muted-foreground">
+                      <div className="h-1 w-1 rounded-full bg-primary/50" />
+                      <span className="font-semibold text-xs uppercase tracking-wider">Thought</span>
+                    </div>
+                    <div className="text-muted-foreground leading-relaxed">
+                      {iter.thought || iter.thoughts}
+                    </div>
                   </Card>
                 )}
 
                 {/* Code */}
                 {iter.code && (
-                  <div className="mt-1">
-                    <span className="text-xs font-semibold text-muted-foreground mb-1 block">Code</span>
-                    <CodeViewer code={iter.code} language="python" />
-                  </div>
+                  <CollapsibleCode code={iter.code} language="python" label="Generated Code" />
                 )}
 
                 {/* Output */}
@@ -89,15 +91,20 @@ export function Message({ message, onArtifactClick }: MessageProps) {
           <>
               {/* Thoughts (for assistant messages) */}
               {message.thoughts && !isUser && (
-                <Card className="p-3 bg-muted/50 text-sm text-muted-foreground">
-                  <p className="font-medium mb-1">Thinking:</p>
-                  <p>{message.thoughts}</p>
+                <Card className="p-4 bg-muted/40 border-border/50 text-sm shadow-sm text-muted-foreground">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-1 w-1 rounded-full bg-primary/50" />
+                    <span className="font-medium text-xs uppercase tracking-wider">Thinking</span>
+                  </div>
+                  <div className="leading-relaxed">
+                    {message.thoughts}
+                  </div>
                 </Card>
               )}
 
               {/* Code block */}
               {message.code && !isUser && (
-                <CodeViewer code={message.code} language="python" />
+                <CollapsibleCode code={message.code} language="python" />
               )}
             </>
         )}

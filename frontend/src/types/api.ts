@@ -27,6 +27,7 @@ export interface TypedData {
 export interface IterationOutput {
   iteration: number
   thought?: string
+  thoughts?: string
   code?: string
   execution_logs?: string
   output?: TypedData

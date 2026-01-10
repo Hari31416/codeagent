@@ -4,7 +4,7 @@ import { Check, Copy } from 'lucide-react'
 import { useState, useCallback } from 'react'
 
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 interface CodeViewerProps {
   code: string
@@ -21,15 +21,15 @@ export function CodeViewer({ code, language = 'python' }: CodeViewerProps) {
   }, [code])
 
   return (
-    <Card className="relative overflow-hidden border">
-      <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/50">
-        <span className="text-xs font-medium text-muted-foreground uppercase">
+    <Card className="relative overflow-hidden border bg-[#1e1e1e] text-zinc-50">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-700 bg-[#252526]">
+        <span className="text-xs font-medium text-zinc-400 uppercase font-mono">
           {language}
         </span>
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6"
+          className="h-6 w-6 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-50"
           onClick={handleCopy}
         >
           {copied ? (
@@ -39,11 +39,17 @@ export function CodeViewer({ code, language = 'python' }: CodeViewerProps) {
           )}
         </Button>
       </div>
-      <div className="max-h-[400px] overflow-auto text-sm bg-zinc-50 dark:bg-zinc-950">
+      <div className="max-h-[400px] overflow-auto text-sm">
         <SyntaxHighlighter
           language={language.toLowerCase()}
-          style={oneLight}
-          customStyle={{ margin: 0, padding: '1rem', background: 'transparent' }}
+          style={vscDarkPlus}
+          customStyle={{
+            margin: 0,
+            padding: '1rem',
+            background: 'transparent',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.875rem'
+          }}
           wrapLines={true}
           wrapLongLines={true}
         >
