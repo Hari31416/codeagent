@@ -1,40 +1,35 @@
-# CodingAgent: AI-Powered Data Analysis & Coding Assistant
+# CodingAgent
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.124.4-009688.svg)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-19.2.0-61DAFB.svg)](https://reactjs.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-**CodingAgent** is a stateful, AI-driven platform for automated data analysis and visualization. It leverages frontier LLMs and a secure Python execution environment to transform natural language queries into executable code and interactive insights.
+**CodingAgent** is a stateful, AI-driven platform for automated data analysis and visualization. It transforms natural language queries into executable Python code, runs it in a secure sandbox, and renders interactive artifacts (charts, tables) in real-time.
 
 ---
 
 ## Architecture Overview
 
-The system features a project-centric, event-driven architecture designed for scalability and state persistence.
+The system follows a project-centric, event-driven architecture designed for high throughput and persistent state management.
 
 ```mermaid
 graph TD
-    User([User])
+    User["User"]
     
     subgraph "Frontend (React + Vite)"
-        UI[Project & Session Management]
-        Chat[Interactive Chat Interface]
-        Artifacts[Rich Result Renderer]
+        UI["Project & Session Management"]
+        Chat["Interactive Chat Interface"]
+        Artifacts["Rich Result Renderer"]
     end
     
     subgraph "Backend (FastAPI)"
-        API[API Gateway]
-        Orchestrator[Agent Orchestrator]
-        Agent[ReAct Analysis Agent]
-        Sandbox[Secure Python Sandbox]
+        API["API Gateway"]
+        Orchestrator["Agent Orchestrator"]
+        Agent["ReAct Data Analysis Agent"]
+        Sandbox["Python Sandbox (Isolated)"]
     end
     
-    subgraph "Storage & Services"
-        Postgres[(PostgreSQL: Projects, Sessions & History)]
-        Redis[(Redis: Distributed Locks & State)]
-        MinIO[(MinIO: S3-Compatible Workspace)]
-        OpenRouter([OpenRouter: Multi-Model API])
+    subgraph "Storage & Infrastructure"
+        Postgres[("PostgreSQL: Metadata & History")]
+        Redis[("Redis: Session Locks & State")]
+        MinIO[("MinIO: S3-Compatible Workspace")]
+        OpenRouter(["OpenRouter: LLM Gateway"])
     end
     
     User <--> UI
@@ -55,23 +50,23 @@ graph TD
 ## Key Features
 
 - **Project-Based Organization**: Group multiple analysis sessions under unified projects with shared datasets and persistent state.
-- **Natural Language Data Analysis**: Convert English queries into complex data processing, filtering, and aggregation using pandas.
-- **Multi-Model Support via OpenRouter**: Seamless access to frontier models including GPT-4o, Claude 3.5 Sonnet, Gemini 3 Pro, and DeepSeek V3.
-- **Secure Code Execution**: Isolated sandbox for running AI-generated Python code using sophisticated safety boundaries and authorized imports.
-- **Stateful Intelligence**: Persistent context across interactions, including file history, previous results, and agent "thought" logs.
-- **Dynamic Artifacts**: Real-time rendering of interactive Plotly charts, data tables (pandas), and execution logs.
-- **Automated Self-Correction**: The agent identifies execution errors and automatically refines code to achieve the requested goal.
+- **Natural Language Data Analysis**: Convert natural language queries into complex data processing, filtering, and aggregation using `pandas` and `numpy`.
+- **Multi-Model Support**: Seamless access to frontier models (GPT-4o, Claude 3.5 Sonnet, Gemini 2.0) via a unified OpenRouter interface.
+- **Secure Code Execution**: Isolated sandbox for running AI-generated code with strict authorized imports and safety boundaries.
+- **Real-Time Artifact Rendering**: Dynamic streaming and rendering of interactive `Plotly` charts, `pandas` tables, and execution logs.
+- **Automated Self-Correction**: The agent detects code execution errors and automatically refines the logic to achieve the user's goal.
+- **Stateful Intelligence**: Persistent context across interactions, including file history, previous reasoning, and agent "thought" logs.
 
 ## Tech Stack
 
-| Layer | Technologies |
+| Component | Technologies |
 | --- | --- |
-| **Frontend** | React 19, Vite, Tailwind CSS (v4), Shadcn UI, Lucide |
-| **Backend** | FastAPI, Pydantic, LiteLLM, LangChain |
-| **Agent Core** | smolagents, Custom Python Executors |
-| **Storage** | PostgreSQL (Relational), Redis (Cache), MinIO (Object Storage) |
-| **Build Tools** | **uv** (Python), **pnpm** (Node.js) |
-| **AI Gateway** | **OpenRouter** (Unified LLM access) |
+| **Frontend** | React 19, Vite, Tailwind CSS v4, Shadcn UI, Lucide |
+| **Backend** | FastAPI, Pydantic, LiteLLM, smolagents |
+| **Data Science** | Pandas, Numpy, Plotly, Matplotlib, Scikit-learn |
+| **Database** | PostgreSQL 16 (Relational), Redis (Caching/Locking) |
+| **Storage** | MinIO (S3-Compatible Object Storage) |
+| **Tooling** | **uv** (Python Package Manager), **pnpm** (Node.js Package Manager) |
 
 ## Project Structure
 
@@ -80,12 +75,11 @@ graph TD
 ├── backend/                # FastAPI Application
 │   ├── app/
 │   │   ├── agents/         # ReAct logic & specialized analysis agents
-│   │   ├── api/routes/     # API Endpoints (Projects, Sessions, Query, etc.)
-│   │   ├── core/           # Core infrastructure (Storage providers, locks)
+│   │   ├── api/routes/     # REST Endpoints (Projects, Sessions, Query)
+│   │   ├── core/           # Core infrastructure (Storage, Cache, Security)
 │   │   ├── db/             # Repository layer & Database connectivity
 │   │   ├── prompts/        # Jinja2 templates for LLM instruction sets
-│   │   ├── services/       # Business logic: Orchestration & Session state
-│   │   ├── shared/         # Common models, LLM bridge & Logging
+│   │   ├── services/       # Orchestration & Business logic
 │   │   └── config.py       # Pydantic Settings & environment config
 │   └── main.py             # Server entry point
 ├── frontend/               # React + Vite Application
@@ -93,63 +87,75 @@ graph TD
 │   │   ├── api/            # API client definitions (Axios)
 │   │   ├── components/     # UI: Chat components, Artifact renderers, Sidebars
 │   │   ├── hooks/          # Custom hooks for state & API consumption
-│   │   ├── stores/         # Application state management
-│   │   └── types/          # TypeScript interface & enum definitions
+│   │   ├── stores/         # Global state management
+│   │   └── types/          # TypeScript definitions
 │   └── package.json
-├── docker-compose.yml      # App services container orchestration
+├── docker-compose.yml      # Service orchestration
 ├── docker-compose.infra.yml # External dependencies (Postgres, Redis, MinIO)
-└── Makefile                # Shortcuts for setup, testing, and linting
+└── Makefile                # Shortcuts for setup and development
 ```
 
-## Execution Flow
+## Logic Flows
 
-The following sequence illustrates a typical data analysis cycle within a project context.
+The following sequence highlights the lifecycle of a query, from user input to rich artifact rendering.
 
 ```mermaid
 sequenceDiagram
     participant U as User
     participant F as Frontend
-    participant B as Backend
+    participant B as Backend (Orchestrator)
+    participant A as DataAnalysisAgent
+    participant S as Sandbox
     participant LLM as OpenRouter
-    participant A as Agent
-    participant W as MinIO Workspace
     
-    U->>F: Create Project & Upload File
-    F->>B: POST /api/v1/projects
-    B->>W: Initialize Project Bucket
-    U->>F: Query: "Analyze sales correlation"
-    F->>B: POST /api/v1/query (session_id)
-    B->>B: Acquire Redis Lock
-    B->>W: Fetch Project Files
-    B->>A: Trigger ReAct Loop
-    loop Self-Correction Cycle
-        A->>LLM: Prompt for logic/code
-        LLM->>A: Return Reasoning & Python Code
-        A->>B: Execute in Sandbox
-        B->>W: Read/Write Results
-        B->>F: Stream Thoughts & Logs (SSE)
+    U->>F: Enter Query: "Plot sales trends"
+    F->>B: POST /api/v1/sessions/{id}/query
+    B->>B: Acquire Redis Session Lock
+    B->>B: Load Workspace Context (MinIO)
+    B->>A: Start Reasoning Cycle
+    loop ReAct Loop
+        A->>LLM: Reasoning + Prompt
+        LLM->>A: Plan + Python Code
+        A->>S: Execute Code
+        S->>S: Read Files / Generate Plots
+        S->>A: Execution Logs + Result
+        A->>B: Stream Status (SSE)
+        B->>F: Stream Thoughts/Logs
     end
-    B->>F: Final Typed Data + Artifact IDs
-    F->>U: Render Charts & Summary
+    B->>B: Capture New Artifacts (MinIO -> DB)
+    B->>B: Save Message History
+    B->>B: Release Lock
+    B->>F: Final Completed Event
+    F->>U: Render Interactive Plotly Chart
 ```
 
 ## Installation & Setup
 
-### 1. Infrastructure
+### Quick Start (using Makefile)
+The project includes a `Makefile` to simplify development and infrastructure management.
+
+- **Infrastructure**: `make up` (starts Postgres, Redis, MinIO) / `make down` (stops them).
+- **Full Setup**: `make setup` (installs backend and frontend dependencies).
+- **Full Start**: `make start` (starts infrastructure and both service servers).
+- **Full Stop**: `make stop` (kills all running processes and infrastructure).
+
+### Manual Installation
+
+#### 1. Infrastructure
 Ensure Docker is installed and run:
 ```bash
-docker-compose up -d
+docker-compose -f docker-compose.infra.yml up -d
 ```
 
-### 2. Backend (using uv)
+#### 2. Backend Setup (using uv)
 ```bash
 cd backend
 uv sync
-# Add OPENROUTER_API_KEY to .env
+# Configure .env with OPENROUTER_API_KEY
 python main.py
 ```
 
-### 3. Frontend (using pnpm)
+#### 3. Frontend Setup (using pnpm)
 ```bash
 cd frontend
 pnpm install
