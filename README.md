@@ -51,7 +51,7 @@ graph TD
 
 - **Project-Based Organization**: Group multiple analysis sessions under unified projects with shared datasets and persistent state.
 - **Natural Language Data Analysis**: Convert natural language queries into complex data processing, filtering, and aggregation using `pandas` and `numpy`.
-- **Multi-Model Support**: Seamless access to frontier models (GPT-4o, Claude 3.5 Sonnet, Gemini 2.0) via a unified OpenRouter interface.
+- **Multi-Model Support**: Seamless access to frontier models (GPT-5.2, Claude 4.5 Sonnet, Gemini 3 Pro) via a unified OpenRouter interface.
 - **Secure Code Execution**: Isolated sandbox for running AI-generated code with strict authorized imports and safety boundaries.
 - **Real-Time Artifact Rendering**: Dynamic streaming and rendering of interactive `Plotly` charts, `pandas` tables, and execution logs.
 - **Automated Self-Correction**: The agent detects code execution errors and automatically refines the logic to achieve the user's goal.
