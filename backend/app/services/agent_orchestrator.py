@@ -4,6 +4,7 @@ Agent Orchestrator
 Coordinates agent execution with workspace, session state, and artifact management.
 """
 
+from datetime import datetime, timezone
 from io import BytesIO
 from typing import Any, AsyncGenerator
 from uuid import UUID
@@ -53,7 +54,6 @@ class AgentOrchestrator:
 
         Yields StreamEvents for real-time frontend updates.
         """
-        # Check if session is busy
         if not await self.session_state.acquire_lock(session_id):
             yield StreamEvent(
                 type="error",
@@ -62,6 +62,9 @@ class AgentOrchestrator:
                 message="Session is currently busy. Please wait.",
             )
             return
+
+        # Capture timestamp immediately when query is received
+        query_received_at = datetime.now(timezone.utc)
 
         try:
             # Yield started event
@@ -132,11 +135,13 @@ class AgentOrchestrator:
             # Save to chat history
             user_msg = None
             async with get_system_db() as conn:
+                # Use the timestamp captured at receipt
                 user_msg = await self.message_repo.add_message(
                     conn=conn,
                     session_id=session_id,
                     role="user",
                     content=user_query,
+                    created_at=query_received_at,
                 )
                 # Ensure content is always a string for database storage
                 result_content = ""

@@ -526,26 +526,46 @@ class MessageRepository:
         execution_logs: str | None = None,
         is_error: bool = False,
         metadata: dict[str, Any] | None = None,
+        created_at: Any | None = None,
     ) -> dict[str, Any]:
         """Add a message to the chat history."""
         import json
 
-        row = await conn.fetchrow(
-            """
-            INSERT INTO messages (session_id, role, content, code, thoughts, artifact_ids, execution_logs, is_error, metadata)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            RETURNING message_id, session_id, role, content, code, thoughts, artifact_ids, execution_logs, is_error, created_at, metadata
-            """,
-            session_id,
-            role,
-            content,
-            code,
-            thoughts,
-            artifact_ids or [],
-            execution_logs,
-            is_error,
-            json.dumps(metadata or {}),
-        )
+        if created_at:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO messages (session_id, role, content, code, thoughts, artifact_ids, execution_logs, is_error, metadata, created_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                RETURNING message_id, session_id, role, content, code, thoughts, artifact_ids, execution_logs, is_error, created_at, metadata
+                """,
+                session_id,
+                role,
+                content,
+                code,
+                thoughts,
+                artifact_ids or [],
+                execution_logs,
+                is_error,
+                json.dumps(metadata or {}),
+                created_at,
+            )
+        else:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO messages (session_id, role, content, code, thoughts, artifact_ids, execution_logs, is_error, metadata)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                RETURNING message_id, session_id, role, content, code, thoughts, artifact_ids, execution_logs, is_error, created_at, metadata
+                """,
+                session_id,
+                role,
+                content,
+                code,
+                thoughts,
+                artifact_ids or [],
+                execution_logs,
+                is_error,
+                json.dumps(metadata or {}),
+            )
 
         logger.debug("message_added", message_id=str(row["message_id"]), role=role)
 

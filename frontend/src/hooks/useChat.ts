@@ -170,7 +170,6 @@ export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: Use
 
           artifactIds = event.data.artifact_ids as string[] || []
           const usageStats = event.data.usage as import('@/types/api').TokenUsage | undefined
-          const userCreatedAt = event.data.user_created_at as string | undefined
 
           if (artifactIds.length > 0 && onArtifactsCreated) {
             onArtifactsCreated(artifactIds)
@@ -190,9 +189,7 @@ export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: Use
                   artifacts: assistantArtifacts
                 }
               }
-              : (userCreatedAt && msg.message_id === userMessage.message_id)
-                ? { ...msg, created_at: userCreatedAt }
-                : msg
+              : msg
           ))
         }
 
