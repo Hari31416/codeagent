@@ -66,11 +66,15 @@ class DataAnalysisAgent(CodingAgent):
             authorized_imports=authorized_imports,
         )
         self.prompt_manager = get_prompt_manager()
+        self._workspace_files: list[dict] = []
 
     @property
     def system_prompt(self) -> str:
-        """Return system prompt from Jinja2 template."""
-        return self.prompt_manager.render("coding/data_analysis.jinja2")
+        """Return system prompt from Jinja2 template with workspace context."""
+        return self.prompt_manager.render(
+            "coding/data_analysis.jinja2",
+            context={"workspace_files": self._workspace_files},
+        )
 
     async def execute_with_workspace(
         self,
@@ -95,20 +99,42 @@ class DataAnalysisAgent(CodingAgent):
         Yields:
             AgentStatus updates for real-time frontend display
         """
+
+        # Store cleaned workspace files for system prompt rendering
+        # We only want to show the basename to the agent so it matches what tools expect
+        cleaned_files = []
+        for f in workspace_files:
+            clean_f = f.copy()
+            clean_f["name"] = f["name"].split("/")[-1]
+            cleaned_files.append(clean_f)
+        self._workspace_files = cleaned_files
+
+        logger.debug(
+            "Workspace files injected into prompt",
+            count=len(self._workspace_files),
+            files=[f["name"] for f in self._workspace_files],
+        )
+
         # Build context with workspace information
         context = {
             "session_id": session_id,
-            "workspace_files": workspace_files,
+            "workspace_files": self._workspace_files,
             "available_dataframes": list(dataframes.keys()) if dataframes else [],
         }
 
         # Merge dataframes into context so they're available during execution
         # The executor will inject these as global variables
         if dataframes:
+            logger.info(
+                "Adding dataframes to context", total_dataframes=len(dataframes)
+            )
             context.update(dataframes)
 
         # Merge workspace tools into context
         if workspace_tools:
+            logger.debug(
+                "Adding workspace tools to context", total_tools=len(workspace_tools)
+            )
             context.update(workspace_tools)
 
         async for status in self.execute_stream(

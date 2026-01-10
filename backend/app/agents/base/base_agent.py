@@ -299,11 +299,8 @@ class CodingAgent(BaseAgent):
             total_iterations=max_iterations,
         )
 
-        # Combine global and specific prompts
-        full_system_prompt = f"{self.system_prompt}"
-
         # Initial messages
-        messages = [{"role": "system", "content": full_system_prompt}]
+        messages = [{"role": "system", "content": self.system_prompt}]
 
         # Add context from session if requested (makes the agent stateful)
         has_conversation_history = False
@@ -844,6 +841,59 @@ class CodingAgent(BaseAgent):
             )
         return "\n".join(info_lines)
 
+    def _parse_list_info(self, lst: list) -> str:
+        """
+        Parse list information for prompt inclusion.
+
+        Args:
+            lst: List object to parse
+        Returns:
+            String summary of list structure
+        """
+        if not lst:
+            return "Empty list."
+
+        # Get unique types in the list
+        types = list(set(type(item).__name__ for item in lst))
+        type_str = ", ".join(types)
+
+        # Show sample items
+        sample_size = min(3, len(lst))
+        samples = lst[:sample_size]
+        sample_str = ", ".join(repr(s) for s in samples)
+
+        info = f"List with {len(lst)} elements of type(s): [{type_str}]."
+        if len(lst) > sample_size:
+            info += f" Sample items: [{sample_str}, ...]"
+        else:
+            info += f" Items: [{sample_str}]"
+        return info
+
+    def _parse_dict_info(self, d: dict) -> str:
+        """
+        Parse dictionary information for prompt inclusion.
+
+        Args:
+            d: Dictionary object to parse
+        Returns:
+            String summary of dictionary structure
+        """
+        if not d:
+            return "Empty dictionary."
+
+        keys = list(d.keys())
+        key_sample_size = min(5, len(keys))
+        key_sample = keys[:key_sample_size]
+        key_str = ", ".join(repr(k) for k in key_sample)
+
+        info = f"Dictionary with {len(d)} keys."
+        if len(keys) > key_sample_size:
+            info += f" Sample keys: [{key_str}, ...]"
+        else:
+            info += f" Keys: [{key_str}]"
+
+        return info
+
     def _build_initial_prompt(
         self,
         user_prompt: str,
@@ -888,6 +938,14 @@ class CodingAgent(BaseAgent):
                     logger.debug("Parsing DataFrame for prompt", key=key)
                     df_info = self._parse_dataframe_info(value)
                     prompt_parts.append(f"- {key}: {df_info}")
+                elif isinstance(value, list):
+                    logger.debug("Parsing List for prompt", key=key)
+                    list_info = self._parse_list_info(value)
+                    prompt_parts.append(f"- {key}: {list_info}")
+                elif isinstance(value, dict):
+                    logger.debug("Parsing Dict for prompt", key=key)
+                    dict_info = self._parse_dict_info(value)
+                    prompt_parts.append(f"- {key}: {dict_info}")
                 else:
                     prompt_parts.append(f"- {key}: <{type(value).__name__} object>")
 
@@ -909,7 +967,8 @@ class CodingAgent(BaseAgent):
             "- 'final_answer': Set to true when the task is complete, false if you need more iterations"
         )
 
-        return "\n".join(prompt_parts)
+        context_str = "\n".join(prompt_parts)
+        return context_str
 
     async def _execute_code(
         self,

@@ -85,6 +85,13 @@ class AgentOrchestrator:
                 if session and session.get("project_id"):
                     project_id = session["project_id"]
 
+            # Add project files to workspace_files so they appear in context
+            if project_id:
+                project_files = await self.workspace_service.list_project_files(
+                    project_id
+                )
+                workspace_files.extend(project_files)
+
             # Load DataFrames for relevant files
             dataframes = await self._load_dataframes(session_id, file_ids)
 
