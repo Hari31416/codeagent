@@ -53,12 +53,32 @@ You MUST respond with a valid JSON object containing exactly these fields:
   false  -> more iterations required
   true   -> task complete
 
-Example:
+IMPORTANT: When setting "final_answer": true, you MUST also define a variable
+called `final_result` in your code. This variable should contain the direct,
+self-contained answer to the user's query. This allows users to quickly see
+the answer without needing to read through your thoughts and code.
+
+`final_result` can be:
+- A simple text string (e.g., "The average age is 35.5 years")
+- A pandas DataFrame or Series (for tabular answers)
+- A matplotlib/plotly figure (for visual answers)
+- A dictionary or list (for structured data)
+- Any combination that directly answers the user's question
+
+Example (intermediate iteration):
 
 {
   "thoughts": "I will first inspect the dataframe to understand its schema and check for missing values.",
   "code": "df.head()\ndf.info()",
   "final_answer": false
+}
+
+Example (final iteration with final_result):
+
+{
+  "thoughts": "The analysis is complete. The average salary by department has been calculated.",
+  "code": "result = df.groupby('department')['salary'].mean()\nfinal_result = result  # Direct answer to the query",
+  "final_answer": true
 }
 
 ----------------------------------------------------------------------

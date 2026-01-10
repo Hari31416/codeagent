@@ -4,9 +4,10 @@ import type { TypedData } from '@/types/api'
 
 interface TypedDataRendererProps {
     data: TypedData
+    showAll?: boolean
 }
 
-export function TypedDataRenderer({ data }: TypedDataRendererProps) {
+export function TypedDataRenderer({ data, showAll = false }: TypedDataRendererProps) {
     if (!data) return null
 
     switch (data.kind) {
@@ -33,8 +34,13 @@ export function TypedDataRenderer({ data }: TypedDataRendererProps) {
                 return str
             }
 
+            // Determine rendering limit
+            const ROW_LIMIT = 50
+            const shouldTruncate = !showAll && tableData.rows.length > ROW_LIMIT
+            const displayRows = shouldTruncate ? tableData.rows.slice(0, ROW_LIMIT) : tableData.rows
+
             return (
-                <Card className="overflow-auto max-h-[400px] my-2">
+                <Card className={`overflow-auto my-2 ${showAll ? 'max-h-[800px]' : 'max-h-[400px]'}`}>
                     <table className="w-full text-sm font-mono">
                         <thead className="sticky top-0 bg-muted z-10 shadow-sm">
                             <tr>
@@ -46,7 +52,7 @@ export function TypedDataRenderer({ data }: TypedDataRendererProps) {
                             </tr>
                         </thead>
                         <tbody>
-                            {tableData.rows.slice(0, 50).map((row, i) => (
+                            {displayRows.map((row, i) => (
                                 <tr key={i} className="even:bg-muted/30 hover:bg-muted/50 transition-colors">
                                     {row.map((cell, j) => (
                                         <td key={j} className="px-4 py-2 border-b border-muted/20 whitespace-nowrap text-foreground/90">
@@ -59,7 +65,7 @@ export function TypedDataRenderer({ data }: TypedDataRendererProps) {
                     </table>
                     <div className="p-2 text-xs text-center text-muted-foreground border-t bg-muted/20">
                         {data.metadata?.rows ? `${data.metadata.rows} rows` : ''}
-                        {tableData.rows.length > 50 ? ' (showing first 50)' : ''}
+                        {shouldTruncate ? ` (showing first ${ROW_LIMIT})` : ''}
                     </div>
                 </Card>
             )

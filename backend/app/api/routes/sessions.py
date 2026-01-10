@@ -205,6 +205,14 @@ async def get_session_history(
                         n_iter["output"] = _normalize_iteration_output(
                             n_iter.get("output")
                         )
+                        # Ensure final_result is typed (user-defined answer)
+                        if (
+                            "final_result" in n_iter
+                            and n_iter["final_result"] is not None
+                        ):
+                            n_iter["final_result"] = _normalize_iteration_output(
+                                n_iter.get("final_result")
+                            )
                         normalized.append(n_iter)
                     else:
                         normalized.append(iter_data)

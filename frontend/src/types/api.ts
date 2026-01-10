@@ -31,6 +31,7 @@ export interface IterationOutput {
   code?: string
   execution_logs?: string
   output?: TypedData
+  final_result?: TypedData  // User-defined direct answer to the query
   artifacts?: Array<{
     artifact_id: string
     file_name: string

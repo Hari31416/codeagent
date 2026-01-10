@@ -36,55 +36,73 @@ export function Message({ message, onArtifactClick }: MessageProps) {
         {/* Iterations (New Standard Format) */}
         {message.iterations && message.iterations.length > 0 ? (
           <div className="flex flex-col gap-4 w-full mt-2">
-            {message.iterations.map((iter, i) => (
-              <div key={i} className="flex flex-col gap-2 border-l-2 border-muted pl-3">
-                <div className="text-xs font-medium text-muted-foreground uppercase">
-                  Iteration {iter.iteration}
+            {message.iterations.map((iter, i) => {
+              const isLastIteration = i === message.iterations!.length - 1
+              const hasFinalResult = iter.final_result && isLastIteration
+
+              return (
+                <div key={i} className="flex flex-col gap-2 border-l-2 border-muted pl-3">
+                  <div className="text-xs font-medium text-muted-foreground uppercase">
+                    Iteration {iter.iteration}
+                  </div>
+
+                  {/* Final Result - Shown prominently at the top of the last iteration */}
+                  {hasFinalResult && (
+                    <Card className="p-4 bg-primary/5 border-primary/20 shadow-sm">
+                      <div className="flex items-center gap-2 mb-2 text-primary">
+                        <div className="h-2 w-2 rounded-full bg-primary" />
+                        <span className="font-semibold text-sm uppercase tracking-wider">Answer</span>
+                      </div>
+                      <div className="mt-1">
+                        <TypedDataRenderer data={iter.final_result!} />
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Thought */}
+                  {(iter.thought || iter.thoughts) && (
+                    <Card className="p-4 bg-muted/40 border-border/50 text-sm shadow-sm">
+                      <div className="flex items-center gap-2 mb-2 text-muted-foreground">
+                        <div className="h-1 w-1 rounded-full bg-primary/50" />
+                        <span className="font-semibold text-xs uppercase tracking-wider">Thought</span>
+                      </div>
+                      <div className="text-muted-foreground leading-relaxed">
+                        {iter.thought || iter.thoughts}
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Code */}
+                  {iter.code && (
+                    <CollapsibleCode code={iter.code} language="python" label="Generated Code" />
+                  )}
+
+                  {/* Output - Only show if no final_result, or for non-final iterations */}
+                  {iter.output && !hasFinalResult && (
+                    <div className="mt-1">
+                      <span className="text-xs font-semibold text-muted-foreground mb-1 block">Output</span>
+                      {/* Dynamic typed renderer */}
+                      <TypedDataRenderer
+                        data={iter.output}
+                      />
+                    </div>
+                  )}
+
+                  {/* Logs fallback or additional info */}
+                  {iter.execution_logs && !iter.output && !hasFinalResult && (
+                    <div className="mt-1 text-xs font-mono bg-black/5 p-2 rounded whitespace-pre-wrap">
+                      {iter.execution_logs}
+                    </div>
+                  )}
+
+                  {iter.error && (
+                    <div className="text-destructive text-sm bg-destructive/10 p-2 rounded">
+                      Error: {iter.error}
+                    </div>
+                  )}
                 </div>
-
-                {/* Thought */}
-                {(iter.thought || iter.thoughts) && (
-                  <Card className="p-4 bg-muted/40 border-border/50 text-sm shadow-sm">
-                    <div className="flex items-center gap-2 mb-2 text-muted-foreground">
-                      <div className="h-1 w-1 rounded-full bg-primary/50" />
-                      <span className="font-semibold text-xs uppercase tracking-wider">Thought</span>
-                    </div>
-                    <div className="text-muted-foreground leading-relaxed">
-                      {iter.thought || iter.thoughts}
-                    </div>
-                  </Card>
-                )}
-
-                {/* Code */}
-                {iter.code && (
-                  <CollapsibleCode code={iter.code} language="python" label="Generated Code" />
-                )}
-
-                {/* Output */}
-                {iter.output && (
-                  <div className="mt-1">
-                    <span className="text-xs font-semibold text-muted-foreground mb-1 block">Output</span>
-                    {/* Dynamic typed renderer */}
-                    <TypedDataRenderer
-                      data={iter.output}
-                    />
-                  </div>
-                )}
-
-                {/* Logs fallback or additional info */}
-                {iter.execution_logs && !iter.output && (
-                  <div className="mt-1 text-xs font-mono bg-black/5 p-2 rounded whitespace-pre-wrap">
-                    {iter.execution_logs}
-                  </div>
-                )}
-
-                {iter.error && (
-                  <div className="text-destructive text-sm bg-destructive/10 p-2 rounded">
-                    Error: {iter.error}
-                  </div>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           /* Legacy View (for old messages or simple responses) */

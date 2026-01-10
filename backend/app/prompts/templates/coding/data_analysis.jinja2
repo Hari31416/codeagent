@@ -123,14 +123,26 @@ For data tables:
 OUTPUT HANDLING
 ----------------------------------------------------------------------
 
-The execution environment automatically captures returned values, BUT saving to files is PREFERRED for:
-1. Charts and Plots (always save these)
-2. Large datasets (save as CSV)
-3. Intermediate results you might want to reuse
+When your task is COMPLETE (final_answer: true), you MUST define `final_result`:
 
-Only return values directly for:
-- Quick answers / summaries
-- Small validation checks
-- Final short answers
+```python
+# Example: Text answer
+final_result = "The average customer age is 35.5 years, with a standard deviation of 12.3."
+
+# Example: DataFrame answer
+final_result = df.groupby('category')['sales'].sum()
+
+# Example: After saving a figure
+save_figure(fig, "sales_chart.png")
+final_result = "Chart saved as sales_chart.png showing quarterly sales trends."
+```
+
+The `final_result` variable is displayed prominently to users who want a quick answer
+without reading through the analysis steps.
+
+For file artifacts (charts, large datasets), BOTH save to file AND set final_result:
+1. Save charts using `save_figure(fig, "filename.png")`
+2. Save large datasets using `save_csv(df, "filename.csv")`
+3. Set `final_result` to describe what was created or provide a summary
 
 Saved files will appear as artifacts in the chat interface.

@@ -15,8 +15,15 @@ from app.agents.executors.executor import ExecutorFactory
 from app.core.memory import SessionMemory
 from app.shared.llm import LLMService
 from app.shared.models import AgentStatus, AgentStatusType
+from app.shared.plots_theme import (
+    set_publish_matplotlib_template,
+    set_publish_plotly_template,
+)
 
 logger = structlog.get_logger(__name__)
+
+set_publish_matplotlib_template()
+set_publish_plotly_template()
 
 
 # =============================================================================
@@ -436,6 +443,7 @@ class CodingAgent(BaseAgent):
                         "output": execution_result.get("output"),
                         "error": execution_result.get("error"),
                         "final_answer": final_answer,
+                        "final_result": execution_result.get("final_result"),
                     }
                 )
 
@@ -468,9 +476,15 @@ class CodingAgent(BaseAgent):
 
                     observation = "\n".join(observation_parts)
                     observations.append(observation)
-                    final_result = output_val
 
-                    # Yield: Iteration complete
+                    # Use user-defined final_result if available, otherwise fall back to output
+                    user_final_result = execution_result.get("final_result")
+                    final_result = (
+                        user_final_result
+                        if user_final_result is not None
+                        else output_val
+                    )
+
                     # Yield: Iteration complete
                     yield self._create_status(
                         AgentStatusType.ITERATION_COMPLETE,
@@ -481,6 +495,7 @@ class CodingAgent(BaseAgent):
                             "success": True,
                             "final_answer": final_answer,
                             "output": output_val,  # Pass raw output for TypedData serialization
+                            "final_result": user_final_result,  # User-defined final answer
                             "thought": thoughts,
                             "code": code,
                             "execution_logs": logs_str,
@@ -596,6 +611,10 @@ class CodingAgent(BaseAgent):
                 if "output" in serialized_entry:
                     serialized_entry["output"] = self._serialize_result(
                         serialized_entry["output"]
+                    )
+                if "final_result" in serialized_entry:
+                    serialized_entry["final_result"] = self._serialize_result(
+                        serialized_entry["final_result"]
                     )
                 serialized_code_history.append(serialized_entry)
 
@@ -1007,6 +1026,7 @@ class CodingAgent(BaseAgent):
                     "success": True,
                     "output": result.output,
                     "logs": "\n".join(result.logs) if result.logs else "",
+                    "final_result": result.final_result,
                 }
             else:
                 return {

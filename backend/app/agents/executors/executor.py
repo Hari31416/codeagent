@@ -33,6 +33,7 @@ class ExecutionResult:
     logs: list[str]
     error: str | None = None
     execution_time_ms: int | None = None
+    final_result: Any | None = None  # User-defined final answer variable
 
 
 class CodeExecutor(ABC):
@@ -147,11 +148,20 @@ class SmolagentsExecutor(CodeExecutor):
                         if line.strip()
                     ]
 
+            # Extract final_result variable if defined by the agent
+            final_result = state.get("final_result")
+            if final_result is not None:
+                logger.info(
+                    "final_result_captured",
+                    type=type(final_result).__name__,
+                )
+
             return ExecutionResult(
                 success=True,
                 output=result,
                 logs=logs,
                 execution_time_ms=execution_time_ms,
+                final_result=final_result,
             )
 
         except Exception as e:

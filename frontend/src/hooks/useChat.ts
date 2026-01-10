@@ -119,6 +119,7 @@ export function useChat({ sessionId, onArtifactsCreated, onSessionRenamed }: Use
             code: event.data.code as string,
             execution_logs: event.data.execution_logs as string,
             output: event.data.output as any, // TypedData
+            final_result: event.data.final_result as any, // TypedData - user-defined answer
             success: event.data.success as boolean,
             error: event.data.error as string,
           }

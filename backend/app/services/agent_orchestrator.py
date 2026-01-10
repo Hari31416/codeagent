@@ -169,6 +169,17 @@ class AgentOrchestrator:
                                     )
                                 )
 
+                            # Serialize final_result to TypedData (user-defined answer)
+                            if (
+                                "final_result" in processed_iter
+                                and processed_iter["final_result"] is not None
+                            ):
+                                processed_iter["final_result"] = (
+                                    self._serialize_to_typed_data(
+                                        processed_iter["final_result"]
+                                    )
+                                )
+
                             processed_iterations.append(processed_iter)
 
                         serialized_iterations = self._serialize_data(
@@ -367,6 +378,14 @@ class AgentOrchestrator:
                 raw_output = status.data.get("output")
                 typed_output = self._serialize_to_typed_data(raw_output)
 
+                # Serialize final_result if present (user-defined direct answer)
+                raw_final_result = status.data.get("final_result")
+                typed_final_result = (
+                    self._serialize_to_typed_data(raw_final_result)
+                    if raw_final_result is not None
+                    else None
+                )
+
                 # Copy other fields
                 serialized_data = {
                     "iteration": status.iteration,
@@ -374,6 +393,7 @@ class AgentOrchestrator:
                     "code": status.data.get("code"),
                     "execution_logs": status.data.get("execution_logs"),
                     "output": typed_output,
+                    "final_result": typed_final_result,  # User-defined direct answer
                     "success": status.data.get("success", False),
                     "error": status.data.get("error"),
                     "final_answer": status.data.get("final_answer", False),
