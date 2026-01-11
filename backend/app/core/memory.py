@@ -76,8 +76,7 @@ class SessionMemory:
         key = f"session:messages:{session_id}"
 
         # Get existing messages
-        messages_json = await self.cache.get(key)
-        messages = json.loads(messages_json) if messages_json else []
+        messages = await self.cache.get_json(key) or []
 
         # Append new message
         messages.append(message)
@@ -87,9 +86,9 @@ class SessionMemory:
             messages = messages[-self.max_messages :]
 
         # Store back with TTL
-        await self.cache.set(
+        await self.cache.set_json(
             key,
-            json.dumps(messages),
+            messages,
             ttl_seconds=self.ttl_seconds,
         )
 
@@ -118,12 +117,10 @@ class SessionMemory:
             List of messages in format: [{"role": "...", "content": "..."}]
         """
         key = f"session:messages:{session_id}"
-        messages_json = await self.cache.get(key)
+        messages = await self.cache.get_json(key)
 
-        if not messages_json:
+        if not messages:
             return []
-
-        messages = json.loads(messages_json)
 
         # Filter out system messages if needed
         if not include_system:
@@ -188,12 +185,7 @@ class SessionMemory:
             List of messages with timestamps and metadata
         """
         key = f"session:messages:{session_id}"
-        messages_json = await self.cache.get(key)
-
-        if not messages_json:
-            return []
-
-        return json.loads(messages_json)
+        return await self.cache.get_json(key) or []
 
     async def set_active_files(
         self,
@@ -208,9 +200,9 @@ class SessionMemory:
             file_ids: List of file IDs currently in use
         """
         key = f"session:files:{session_id}"
-        await self.cache.set(
+        await self.cache.set_json(
             key,
-            json.dumps(file_ids),
+            file_ids,
             ttl_seconds=self.ttl_seconds,
         )
 
@@ -231,9 +223,7 @@ class SessionMemory:
             List of file IDs
         """
         key = f"session:files:{session_id}"
-        files_json = await self.cache.get(key)
-
-        return json.loads(files_json) if files_json else []
+        return await self.cache.get_json(key) or []
 
     async def set_active_connections(
         self,
@@ -248,9 +238,9 @@ class SessionMemory:
             connection_ids: List of connection IDs currently in use
         """
         key = f"session:connections:{session_id}"
-        await self.cache.set(
+        await self.cache.set_json(
             key,
-            json.dumps(connection_ids),
+            connection_ids,
             ttl_seconds=self.ttl_seconds,
         )
 
@@ -265,9 +255,7 @@ class SessionMemory:
             List of connection IDs
         """
         key = f"session:connections:{session_id}"
-        connections_json = await self.cache.get(key)
-
-        return json.loads(connections_json) if connections_json else []
+        return await self.cache.get_json(key) or []
 
     async def clear_session(self, session_id: str) -> None:
         """
@@ -301,6 +289,6 @@ class SessionMemory:
         ]
 
         for key in keys:
-            value = await self.cache.get(key)
+            value = await self.cache.get_json(key)
             if value:
-                await self.cache.set(key, value, ttl_seconds=self.ttl_seconds)
+                await self.cache.set_json(key, value, ttl_seconds=self.ttl_seconds)
