@@ -8,7 +8,6 @@ export interface Project {
 }
 
 export interface CreateProjectRequest {
-  user_id: string
   name: string
   description?: string
 }

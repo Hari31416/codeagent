@@ -24,12 +24,11 @@ export async function updateSession(
 }
 
 export async function getSessions(
-  userId: string,
   projectId?: string
 ): Promise<SessionListResponse> {
-  let url = `/sessions?user_id=${userId}`
+  let url = '/sessions'
   if (projectId) {
-    url += `&project_id=${projectId}`
+    url += `?project_id=${projectId}`
   }
   return apiRequest(url)
 }

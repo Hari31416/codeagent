@@ -4,7 +4,6 @@ import { Plus, MessageSquare, Trash2 } from 'lucide-react'
 import { getSessions, deleteSession } from '@/api/sessions'
 import type { Session } from '@/types/session'
 import { cn } from '@/lib/utils'
-import { getUserId } from '@/lib/user'
 
 interface SessionSidebarProps {
   currentSessionId: string | null
@@ -18,8 +17,7 @@ export function SessionSidebar({ currentSessionId, onSessionSelect, onNewSession
 
   const loadSessions = async () => {
     try {
-      const userId = getUserId()
-      const response = await getSessions(userId)
+      const response = await getSessions()
       if (response.success) {
         setSessions(response.data)
       }

@@ -1,4 +1,5 @@
 import type { QueryRequest, StreamEvent } from '@/types/api'
+import { getAuthHeaders } from './client'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8011/api/v1'
 
@@ -11,7 +12,7 @@ export async function* streamQuery(
     {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
         Accept: 'text/event-stream',
       },
       body: JSON.stringify(request),

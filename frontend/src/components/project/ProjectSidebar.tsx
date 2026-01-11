@@ -6,7 +6,9 @@ import type { Session } from '@/types/session'
 import type { Project } from '@/types/project'
 import { cn } from '@/lib/utils'
 import { useEffect } from 'react'
-import { getUserId } from '@/lib/user'
+import { useAuthStore } from '@/stores/authStore'
+import { useNavigate } from 'react-router-dom'
+import { Users, LogOut } from 'lucide-react'
 
 interface ProjectSidebarProps {
   projects: Project[]
@@ -35,14 +37,15 @@ export function ProjectSidebar({
   lastUpdated,
   collapsed = false,
 }: ProjectSidebarProps) {
+  const navigate = useNavigate()
+  const { user, logout } = useAuthStore()
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
   const [projectSessions, setProjectSessions] = useState<Record<string, Session[]>>({})
 
   // Load sessions for a project
   const loadProjectSessions = async (projectId: string) => {
     try {
-      const userId = getUserId()
-      const response = await getSessions(userId, projectId)
+      const response = await getSessions(projectId)
       if (response.success) {
         setProjectSessions(prev => ({
           ...prev,
@@ -269,6 +272,35 @@ export function ProjectSidebar({
               No projects found
             </div>
           )}
+        </div>
+      </div>
+      <div className="mt-auto p-2 border-t bg-background/50">
+        <div className="space-y-1">
+          {user?.role === 'admin' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn("w-full justify-start gap-2 text-muted-foreground hover:text-foreground", collapsed && "justify-center px-0")}
+              onClick={() => navigate('/admin/users')}
+              title={collapsed ? "User Management" : undefined}
+            >
+              <Users className="h-4 w-4" />
+              {!collapsed && "User Management"}
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn("w-full justify-start gap-2 text-muted-foreground hover:text-destructive", collapsed && "justify-center px-0")}
+            onClick={() => {
+              logout()
+              navigate('/login')
+            }}
+            title={collapsed ? "Logout" : undefined}
+          >
+            <LogOut className="h-4 w-4" />
+            {!collapsed && "Logout"}
+          </Button>
         </div>
       </div>
     </div>

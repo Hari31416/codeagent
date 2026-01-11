@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import * as projectsApi from '@/api/projects'
 import type { Project } from '@/types/project'
-import { getUserId } from '@/lib/user'
 
 export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([])
@@ -13,8 +12,7 @@ export function useProjects() {
     setLoading(true)
     setError(null)
     try {
-      const userId = getUserId()
-      const response = await projectsApi.getProjects(userId)
+      const response = await projectsApi.getProjects()
       if (response.success) {
         setProjects(response.data)
       }
@@ -28,9 +26,7 @@ export function useProjects() {
 
   const createProject = useCallback(async (name: string, description?: string) => {
     try {
-      const userId = getUserId()
       const response = await projectsApi.createProject({
-        user_id: userId,
         name,
         description,
       })

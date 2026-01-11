@@ -1,4 +1,4 @@
-import { apiRequest } from './client'
+import { apiRequest, handleAuthError } from './client'
 import type { Project, CreateProjectRequest, ProjectListResponse } from '@/types/project'
 import type { ApiResponse } from '@/types/api'
 import type { Artifact, UploadResponse } from '@/types/artifact'
@@ -14,8 +14,8 @@ export async function createProject(
   })
 }
 
-export async function getProjects(userId: string): Promise<ProjectListResponse> {
-  return apiRequest(`/projects?user_id=${userId}`)
+export async function getProjects(): Promise<ProjectListResponse> {
+  return apiRequest('/projects')
 }
 
 export async function getProject(projectId: string): Promise<ApiResponse<Project>> {
@@ -48,18 +48,16 @@ export async function uploadProjectFile(
   formData.append('file', file)
 
   // Use fetch directly for FormData to avoid Content-Type header issues with apiRequest wrapper
-  // assuming apiRequest adds JSON headers
-  const token = localStorage.getItem('token')
-  const headers: HeadersInit = {}
-  if (token) headers['Authorization'] = `Bearer ${token}`
-
   const response = await fetch(`${API_BASE_URL}/projects/${projectId}/upload`, {
     method: 'POST',
-    headers,
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+    },
     body: formData,
   })
 
   if (!response.ok) {
+    handleAuthError(response.status)
     const error = await response.json().catch(() => ({ detail: 'Upload failed' }))
     throw new Error(error.detail || 'Upload failed')
   }
