@@ -3,8 +3,10 @@ Artifact management API endpoints.
 """
 
 from datetime import timedelta
+from typing import Any
 from uuid import UUID
 
+from app.config import settings
 from app.core.storage import get_storage_service
 from app.db.pool import get_system_db
 from app.db.session_db import ArtifactRepository
@@ -14,6 +16,18 @@ from fastapi import APIRouter, HTTPException, Query
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/artifacts", tags=["artifacts"])
+
+
+def _safe_isoformat(value: Any) -> str:
+    """Safely convert a datetime or string to ISO format string."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
 
 artifact_repo = ArtifactRepository()
 storage_service = get_storage_service()
@@ -38,7 +52,8 @@ async def get_artifact(artifact_id: UUID):
             "file_type": artifact["file_type"],
             "mime_type": artifact["mime_type"],
             "size_bytes": artifact["size_bytes"],
-            "created_at": artifact["created_at"].isoformat(),
+            "created_at": _safe_isoformat(artifact["created_at"]),
+            "presigned_url": f"{settings.api_base_url}/artifacts/{artifact['artifact_id']}/download",
         },
     }
 
@@ -78,7 +93,7 @@ async def get_artifact_url(
 async def download_artifact(artifact_id: UUID):
     """
     Stream artifact file directly from MinIO through the backend.
-    
+
     This avoids presigned URL signature issues with proxies.
     """
     async with get_system_db() as conn:
@@ -90,9 +105,9 @@ async def download_artifact(artifact_id: UUID):
     try:
         # Download file from MinIO
         file_data = storage_service.download(artifact["minio_object_key"])
-        
+
         from fastapi.responses import Response
-        
+
         return Response(
             content=file_data,
             media_type=artifact["mime_type"],
@@ -125,7 +140,8 @@ async def get_session_artifacts(session_id: UUID):
                 "file_type": a["file_type"],
                 "mime_type": a["mime_type"],
                 "size_bytes": a["size_bytes"],
-                "created_at": a["created_at"].isoformat(),
+                "created_at": _safe_isoformat(a["created_at"]),
+                "presigned_url": f"{settings.api_base_url}/artifacts/{a['artifact_id']}/download",
             }
             for a in artifacts
         ],
@@ -149,7 +165,8 @@ async def get_project_artifacts(project_id: UUID):
                 "file_type": a["file_type"],
                 "mime_type": a["mime_type"],
                 "size_bytes": a["size_bytes"],
-                "created_at": a["created_at"].isoformat(),
+                "created_at": _safe_isoformat(a["created_at"]),
+                "presigned_url": f"{settings.api_base_url}/artifacts/{a['artifact_id']}/download",
             }
             for a in artifacts
         ],

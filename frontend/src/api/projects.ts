@@ -3,6 +3,8 @@ import type { Project, CreateProjectRequest, ProjectListResponse } from '@/types
 import type { ApiResponse } from '@/types/api'
 import type { Artifact, UploadResponse } from '@/types/artifact'
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8011/api/v1'
+
 export async function createProject(
   request: CreateProjectRequest
 ): Promise<ApiResponse<Project>> {
@@ -51,7 +53,7 @@ export async function uploadProjectFile(
   const headers: HeadersInit = {}
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const response = await fetch(`/api/v1/projects/${projectId}/upload`, {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/upload`, {
     method: 'POST',
     headers,
     body: formData,
