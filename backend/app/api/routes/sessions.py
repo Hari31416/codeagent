@@ -74,7 +74,7 @@ async def create_session(request: CreateSessionRequest):
             "project_id": str(session["project_id"]),
             "workspace_prefix": session["workspace_prefix"],
             "name": session["name"],
-            "created_at": session["created_at"].isoformat(),
+            "created_at": _safe_isoformat(session["created_at"]),
         },
     }
 
@@ -96,8 +96,8 @@ async def get_session(session_id: UUID):
             "project_id": str(session["project_id"]),
             "workspace_prefix": session["workspace_prefix"],
             "name": session["name"],
-            "created_at": session["created_at"].isoformat(),
-            "updated_at": session["updated_at"].isoformat(),
+            "created_at": _safe_isoformat(session["created_at"]),
+            "updated_at": _safe_isoformat(session["updated_at"]),
         },
     }
 
@@ -120,7 +120,7 @@ async def update_session(session_id: UUID, request: UpdateSessionRequest):
         "data": {
             "session_id": str(session["session_id"]),
             "name": session["name"],
-            "updated_at": session["updated_at"].isoformat(),
+            "updated_at": _safe_isoformat(session["updated_at"]),
         },
     }
 
@@ -200,7 +200,7 @@ async def get_session_history(
             "code": msg["code"],
             "thoughts": msg["thoughts"],
             "is_error": msg["is_error"],
-            "created_at": msg["created_at"].isoformat(),
+            "created_at": _safe_isoformat(msg["created_at"]),
             "metadata": metadata,
         }
 
@@ -390,8 +390,8 @@ async def list_sessions(
                 "session_id": str(s["session_id"]),
                 "project_id": str(s["project_id"]),
                 "name": s["name"],
-                "created_at": s["created_at"].isoformat(),
-                "updated_at": s["updated_at"].isoformat(),
+                "created_at": _safe_isoformat(s["created_at"]),
+                "updated_at": _safe_isoformat(s["updated_at"]),
             }
             for s in sessions
         ],
