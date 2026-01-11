@@ -73,7 +73,6 @@ export function TypedDataRenderer({ data, showAll = false }: TypedDataRendererPr
             )
 
         case 'image':
-        case 'image':
             const imageUrl = `data:image/${data.metadata?.format || 'png'};base64,${data.data}`
             return (
                 <Dialog>

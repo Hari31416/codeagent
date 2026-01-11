@@ -187,6 +187,15 @@ class StorageService:
             url = self.client.presigned_get_object(
                 bucket_name=self.bucket, object_name=object_name, expires=expires
             )
+
+            # Replace internal endpoint with public endpoint if configured
+            if settings.minio_public_endpoint:
+                # Build the internal URL prefix to replace (protocol://host/bucket)
+                protocol = "https" if settings.minio_secure else "http"
+                internal_prefix = f"{protocol}://{settings.minio_endpoint}/{self.bucket}"
+                # Replace with public endpoint + bucket
+                url = url.replace(internal_prefix, f"{settings.minio_public_endpoint}/{self.bucket}", 1)
+
             logger.info(
                 "presigned_url_generated",
                 object_name=object_name,

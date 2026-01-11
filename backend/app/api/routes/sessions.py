@@ -314,48 +314,29 @@ def _normalize_iteration_output(output: Any) -> dict[str, Any] | None:
 @router.get("/{session_id}/artifacts")
 async def get_session_artifacts(session_id: UUID):
     """Get all artifacts for a session."""
+    from app.config import settings
+
     async with get_system_db() as conn:
         artifacts = await artifact_repo.get_artifacts_by_session(
             conn, session_id=session_id
         )
 
-    # Generate presigned URLs for each artifact
-    # This was the bug: previously it only returned metadata
+    # Use backend download endpoint instead of presigned URLs
     result = []
     for a in artifacts:
-        try:
-            url = await workspace_service.get_presigned_url(
-                session_id=session_id,
-                file_name=a["file_name"],
-            )
-            result.append(
-                {
-                    "artifact_id": str(a["artifact_id"]),
-                    "file_name": a["file_name"],
-                    "file_type": a["file_type"],
-                    "mime_type": a["mime_type"],
-                    "size_bytes": a["size_bytes"],
-                    "created_at": _safe_isoformat(a["created_at"]),
-                    "presigned_url": url,
-                }
-            )
-        except Exception as e:
-            logger.warning(
-                "failed_to_generate_presigned_url",
-                artifact_id=str(a["artifact_id"]),
-                error=str(e),
-            )
-            # Add without URL if generation fails
-            result.append(
-                {
-                    "artifact_id": str(a["artifact_id"]),
-                    "file_name": a["file_name"],
-                    "file_type": a["file_type"],
-                    "mime_type": a["mime_type"],
-                    "size_bytes": a["size_bytes"],
-                    "created_at": _safe_isoformat(a["created_at"]),
-                }
-            )
+        # Nginx proxy_pass already adds /v1, so just use api_base_url + /artifacts/...
+        download_url = f"{settings.api_base_url}/artifacts/{a['artifact_id']}/download"
+        result.append(
+            {
+                "artifact_id": str(a["artifact_id"]),
+                "file_name": a["file_name"],
+                "file_type": a["file_type"],
+                "mime_type": a["mime_type"],
+                "size_bytes": a["size_bytes"],
+                "created_at": _safe_isoformat(a["created_at"]),
+                "presigned_url": download_url,  # Now points to backend endpoint
+            }
+        )
 
     return {
         "success": True,

@@ -101,6 +101,7 @@ class Settings(BaseSettings):
     # MinIO (S3-compatible storage)
     # ─────────────────────────────────────────────────────────────────────────
     minio_endpoint: str = "localhost:9000"
+    minio_public_endpoint: str | None = None  # External URL for presigned URLs (e.g., https://minio.example.com)
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin"
     minio_secure: bool = False

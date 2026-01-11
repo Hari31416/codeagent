@@ -77,7 +77,9 @@ async def get_artifact_url(
 @router.get("/{artifact_id}/download")
 async def download_artifact(artifact_id: UUID):
     """
-    Redirect to a presigned download URL for the artifact.
+    Stream artifact file directly from MinIO through the backend.
+    
+    This avoids presigned URL signature issues with proxies.
     """
     async with get_system_db() as conn:
         artifact = await artifact_repo.get_artifact(conn, artifact_id)
@@ -85,14 +87,27 @@ async def download_artifact(artifact_id: UUID):
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
 
-    url = storage_service.get_presigned_url(
-        artifact["minio_object_key"],
-        expires=timedelta(hours=1),
-    )
-
-    from fastapi.responses import RedirectResponse
-
-    return RedirectResponse(url=url)
+    try:
+        # Download file from MinIO
+        file_data = storage_service.download(artifact["minio_object_key"])
+        
+        from fastapi.responses import Response
+        
+        return Response(
+            content=file_data,
+            media_type=artifact["mime_type"],
+            headers={
+                "Content-Disposition": f'inline; filename="{artifact["file_name"]}"',
+                "Content-Length": str(len(file_data)),
+            },
+        )
+    except Exception as e:
+        logger.error(
+            "artifact_download_failed",
+            artifact_id=str(artifact_id),
+            error=str(e),
+        )
+        raise HTTPException(status_code=500, detail="Failed to download artifact")
 
 
 @router.get("/sessions/{session_id}")

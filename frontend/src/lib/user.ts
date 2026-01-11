@@ -1,13 +1,6 @@
-import { v4 as uuidv4 } from 'uuid'
+// Hardcoded user ID until auth is implemented
+const HARDCODED_USER_ID = '8b9f0389-cd3d-4239-b5f0-0af7786f6db5'
 
 export function getUserId(): string {
-    const STORAGE_KEY = 'codeagent_user_id'
-    let userId = localStorage.getItem(STORAGE_KEY)
-
-    if (!userId) {
-        userId = uuidv4()
-        localStorage.setItem(STORAGE_KEY, userId)
-    }
-
-    return userId as string
+    return HARDCODED_USER_ID
 }
