@@ -8,7 +8,16 @@ import asyncio
 from contextlib import asynccontextmanager
 
 # Import routers
-from app.api.routes import artifacts, models, projects, query, sessions, upload
+from app.api.routes import (
+    artifacts,
+    auth,
+    models,
+    projects,
+    query,
+    sessions,
+    upload,
+    users,
+)
 from app.config import settings
 from app.core.cache import CacheService
 from app.db.init_db import init_database
@@ -81,6 +90,8 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth.router)
+app.include_router(users.router)
 app.include_router(projects.router)
 app.include_router(sessions.router)
 app.include_router(artifacts.router)

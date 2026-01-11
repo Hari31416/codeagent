@@ -345,32 +345,24 @@ class ExportService:
                                                     )
                                                     parts.append(f"\n{output_md}\n")
                                             else:
-                                                url = await self.workspace_service.get_presigned_url(
-                                                    session_id, artifact["file_name"]
-                                                )
+                                                url = f"{settings.api_base_url}/artifacts/{artifact['artifact_id']}/download"
                                                 parts.append(
                                                     f"\n**[File: {artifact['file_name']}]({url})** (JSON Data - click to download)\n"
                                                 )
                                         except Exception:
-                                            url = await self.workspace_service.get_presigned_url(
-                                                session_id, artifact["file_name"]
-                                            )
+                                            url = f"{settings.api_base_url}/artifacts/{artifact['artifact_id']}/download"
                                             parts.append(
                                                 f"\n**[File: {artifact['file_name']}]({url})** (JSON File - click to download)\n"
                                             )
 
                                     elif f_type == "html":
-                                        url = await self.workspace_service.get_presigned_url(
-                                            session_id, artifact["file_name"]
-                                        )
+                                        url = f"{settings.api_base_url}/artifacts/{artifact['artifact_id']}/download"
                                         parts.append(
                                             f"\n**[Interactive Artifact: {artifact['file_name']}]({url})** (HTML File - click to download/view)\n"
                                         )
 
                                     elif f_type == "csv":
-                                        url = await self.workspace_service.get_presigned_url(
-                                            session_id, artifact["file_name"]
-                                        )
+                                        url = f"{settings.api_base_url}/artifacts/{artifact['artifact_id']}/download"
                                         parts.append(
                                             f"\n**[File: {artifact['file_name']}]({url})** (CSV Data - click to download)\n"
                                         )

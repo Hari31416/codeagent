@@ -4,6 +4,7 @@ Project management API endpoints.
 
 from uuid import UUID
 
+from app.core.deps import CurrentActiveUser
 from app.db.pool import get_system_db
 from app.db.session_db import ProjectRepository, SessionRepository
 from app.services.export_service import ExportService
@@ -24,7 +25,6 @@ export_service = ExportService()
 class CreateProjectRequest(BaseModel):
     """Request model for creating a project."""
 
-    user_id: UUID
     name: str
     description: str | None = None
 
@@ -37,7 +37,9 @@ class UpdateProjectRequest(BaseModel):
 
 
 @router.post("")
-async def create_project(request: CreateProjectRequest):
+async def create_project(
+    request: CreateProjectRequest, current_user: CurrentActiveUser
+):
     """
     Create a new project.
 
@@ -47,7 +49,7 @@ async def create_project(request: CreateProjectRequest):
         async with get_system_db() as conn:
             project = await project_repo.create_project(
                 conn,
-                user_id=request.user_id,
+                user_id=current_user["user_id"],
                 name=request.name,
                 description=request.description,
             )
@@ -58,13 +60,16 @@ async def create_project(request: CreateProjectRequest):
 
 
 @router.get("/{project_id}")
-async def get_project(project_id: UUID):
+async def get_project(project_id: UUID, current_user: CurrentActiveUser):
     """Get project details by ID."""
     try:
         async with get_system_db() as conn:
             project = await project_repo.get_project(conn, project_id)
             if not project:
                 raise HTTPException(status_code=404, detail="Project not found")
+            # Verify ownership
+            if project["user_id"] != current_user["user_id"]:
+                raise HTTPException(status_code=403, detail="Access denied")
             return {"success": True, "data": project}
     except HTTPException:
         raise
@@ -74,18 +79,25 @@ async def get_project(project_id: UUID):
 
 
 @router.patch("/{project_id}")
-async def update_project(project_id: UUID, request: UpdateProjectRequest):
+async def update_project(
+    project_id: UUID, request: UpdateProjectRequest, current_user: CurrentActiveUser
+):
     """Update project metadata."""
     try:
         async with get_system_db() as conn:
+            # Verify ownership first
+            project = await project_repo.get_project(conn, project_id)
+            if not project:
+                raise HTTPException(status_code=404, detail="Project not found")
+            if project["user_id"] != current_user["user_id"]:
+                raise HTTPException(status_code=403, detail="Access denied")
+
             project = await project_repo.update_project(
                 conn,
                 project_id=project_id,
                 name=request.name,
                 description=request.description,
             )
-            if not project:
-                raise HTTPException(status_code=404, detail="Project not found")
             return {"success": True, "data": project}
     except HTTPException:
         raise
@@ -95,7 +107,7 @@ async def update_project(project_id: UUID, request: UpdateProjectRequest):
 
 
 @router.delete("/{project_id}")
-async def delete_project(project_id: UUID):
+async def delete_project(project_id: UUID, current_user: CurrentActiveUser):
     """
     Delete a project and all associated data.
 
@@ -105,11 +117,18 @@ async def delete_project(project_id: UUID):
     """
     try:
         async with get_system_db() as conn:
+            # Verify ownership first
+            project = await project_repo.get_project(conn, project_id)
+            if not project:
+                raise HTTPException(status_code=404, detail="Project not found")
+            if project["user_id"] != current_user["user_id"]:
+                raise HTTPException(status_code=403, detail="Access denied")
+
             # 1. Delete all session workspaces
             sessions = await session_repo.list_sessions_by_project(
                 conn,
                 project_id=project_id,
-                limit=1000,  # Cap at 1000 for safety, though projects likely satisfy this
+                limit=1000,
             )
             for session in sessions:
                 try:
@@ -145,16 +164,16 @@ async def delete_project(project_id: UUID):
 
 @router.get("")
 async def list_projects(
-    user_id: UUID = Query(..., description="User ID to filter projects"),
+    current_user: CurrentActiveUser,
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
-    """List projects for a user."""
+    """List projects for the current user."""
     try:
         async with get_system_db() as conn:
             projects = await project_repo.list_projects_by_user(
                 conn,
-                user_id=user_id,
+                user_id=current_user["user_id"],
                 limit=limit,
                 offset=offset,
             )
@@ -167,16 +186,19 @@ async def list_projects(
 @router.get("/{project_id}/sessions")
 async def list_project_sessions(
     project_id: UUID,
+    current_user: CurrentActiveUser,
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
     """List all sessions within a project."""
     try:
         async with get_system_db() as conn:
-            # First verify project exists
+            # First verify project exists and belongs to user
             project = await project_repo.get_project(conn, project_id)
             if not project:
                 raise HTTPException(status_code=404, detail="Project not found")
+            if project["user_id"] != current_user["user_id"]:
+                raise HTTPException(status_code=403, detail="Access denied")
 
             sessions = await session_repo.list_sessions_by_project(
                 conn,
@@ -193,7 +215,7 @@ async def list_project_sessions(
 
 
 @router.get("/{project_id}/export")
-async def export_project(project_id: UUID):
+async def export_project(project_id: UUID, current_user: CurrentActiveUser):
     """
     Export all sessions in a project as JSON metadata and markdown.
 
@@ -204,6 +226,14 @@ async def export_project(project_id: UUID):
         - session_count: Number of sessions exported
     """
     try:
+        # Verify ownership first
+        async with get_system_db() as conn:
+            project = await project_repo.get_project(conn, project_id)
+            if not project:
+                raise HTTPException(status_code=404, detail="Project not found")
+            if project["user_id"] != current_user["user_id"]:
+                raise HTTPException(status_code=403, detail="Access denied")
+
         result = await export_service.export_project(project_id)
         return {
             "success": True,

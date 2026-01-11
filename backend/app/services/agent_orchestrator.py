@@ -11,6 +11,7 @@ from uuid import UUID
 
 import pandas as pd
 from app.agents.data_analysis_agent import DataAnalysisAgent
+from app.config import settings
 from app.db.pool import get_system_db
 from app.db.session_db import ArtifactRepository, MessageRepository, SessionRepository
 from app.services.session_state_service import SessionStateService
@@ -280,27 +281,18 @@ class AgentOrchestrator:
                 ),
             }
 
-            # Generate presigned URLs for new artifacts
+            # Generate standardized URLs for new artifacts
             for artifact in new_artifacts:
-                try:
-                    url = await self.workspace_service.get_presigned_url(
-                        session_id=session_id,
-                        file_name=artifact["file_name"],
-                    )
-                    response_data["artifacts"].append(
-                        {
-                            "artifact_id": str(artifact["artifact_id"]),
-                            "file_name": artifact["file_name"],
-                            "file_type": artifact["file_type"],
-                            "url": url,
-                        }
-                    )
-                except Exception as e:
-                    logger.warning(
-                        "failed_to_generate_presigned_url",
-                        artifact_id=str(artifact["artifact_id"]),
-                        error=str(e),
-                    )
+                # Use backend download endpoint instead of presigned MinIO URLs
+                url = f"{settings.api_base_url}/artifacts/{artifact['artifact_id']}/download"
+                response_data["artifacts"].append(
+                    {
+                        "artifact_id": str(artifact["artifact_id"]),
+                        "file_name": artifact["file_name"],
+                        "file_type": artifact["file_type"],
+                        "url": url,
+                    }
+                )
 
             if final_result:
                 # Extract the actual result (answer/dataframe) and serialize it

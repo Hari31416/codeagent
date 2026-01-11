@@ -5,6 +5,7 @@ Session management API endpoints.
 from typing import Any
 from uuid import UUID
 
+from app.core.deps import CurrentActiveUser
 from app.db.pool import get_system_db
 from app.db.session_db import ArtifactRepository, MessageRepository, SessionRepository
 from app.services.export_service import ExportService
@@ -38,7 +39,6 @@ export_service = ExportService()
 class CreateSessionRequest(BaseModel):
     """Request model for creating a session."""
 
-    user_id: UUID
     project_id: UUID
     name: str | None = None
 
@@ -50,7 +50,9 @@ class UpdateSessionRequest(BaseModel):
 
 
 @router.post("")
-async def create_session(request: CreateSessionRequest):
+async def create_session(
+    request: CreateSessionRequest, current_user: CurrentActiveUser
+):
     """
     Create a new session.
 
@@ -59,7 +61,7 @@ async def create_session(request: CreateSessionRequest):
     async with get_system_db() as conn:
         session = await session_repo.create_session(
             conn=conn,
-            user_id=request.user_id,
+            user_id=current_user["user_id"],
             project_id=request.project_id,
             name=request.name,
         )
@@ -80,13 +82,17 @@ async def create_session(request: CreateSessionRequest):
 
 
 @router.get("/{session_id}")
-async def get_session(session_id: UUID):
+async def get_session(session_id: UUID, current_user: CurrentActiveUser):
     """Get session details by ID."""
     async with get_system_db() as conn:
         session = await session_repo.get_session(conn=conn, session_id=session_id)
 
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    # Verify ownership
+    if session["user_id"] != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     return {
         "success": True,
@@ -103,17 +109,23 @@ async def get_session(session_id: UUID):
 
 
 @router.patch("/{session_id}")
-async def update_session(session_id: UUID, request: UpdateSessionRequest):
+async def update_session(
+    session_id: UUID, request: UpdateSessionRequest, current_user: CurrentActiveUser
+):
     """Update session metadata."""
     async with get_system_db() as conn:
+        # First verify ownership
+        existing = await session_repo.get_session(conn=conn, session_id=session_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Session not found")
+        if existing["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+
         session = await session_repo.update_session(
             conn=conn,
             session_id=session_id,
             name=request.name,
         )
-
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
 
     return {
         "success": True,
@@ -126,7 +138,7 @@ async def update_session(session_id: UUID, request: UpdateSessionRequest):
 
 
 @router.delete("/{session_id}")
-async def delete_session(session_id: UUID):
+async def delete_session(session_id: UUID, current_user: CurrentActiveUser):
     """
     Delete a session and all associated data.
 
@@ -134,7 +146,16 @@ async def delete_session(session_id: UUID):
     1. Delete workspace files from MinIO
     2. Delete session record from PostgreSQL (cascades to artifacts and messages)
     """
+    # Verify ownership first
+    async with get_system_db() as conn:
+        session = await session_repo.get_session(conn=conn, session_id=session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        if session["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+
     # Delete workspace files
+    deleted_count = 0
     try:
         deleted_count = await workspace_service.delete_workspace(session_id)
     except Exception as e:
@@ -161,6 +182,7 @@ async def delete_session(session_id: UUID):
 @router.get("/{session_id}/history")
 async def get_session_history(
     session_id: UUID,
+    current_user: CurrentActiveUser,
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
@@ -172,7 +194,14 @@ async def get_session_history(
     - Replaying past sessions
     - Branching from a specific point
     """
+    # Verify ownership
     async with get_system_db() as conn:
+        session = await session_repo.get_session(conn=conn, session_id=session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        if session["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+
         messages = await message_repo.get_messages_by_session(
             conn=conn,
             session_id=session_id,
@@ -312,11 +341,18 @@ def _normalize_iteration_output(output: Any) -> dict[str, Any] | None:
 
 
 @router.get("/{session_id}/artifacts")
-async def get_session_artifacts(session_id: UUID):
+async def get_session_artifacts(session_id: UUID, current_user: CurrentActiveUser):
     """Get all artifacts for a session."""
     from app.config import settings
 
     async with get_system_db() as conn:
+        # Verify ownership
+        session = await session_repo.get_session(conn=conn, session_id=session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        if session["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+
         artifacts = await artifact_repo.get_artifacts_by_session(
             conn, session_id=session_id
         )
@@ -347,18 +383,18 @@ async def get_session_artifacts(session_id: UUID):
 
 @router.get("")
 async def list_sessions(
-    user_id: UUID = Query(..., description="User ID to filter sessions"),
+    current_user: CurrentActiveUser,
     project_id: UUID | None = Query(
         None, description="Optional project ID to filter sessions"
     ),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
-    """List sessions for a user, optionally filtered by project."""
+    """List sessions for the current user, optionally filtered by project."""
     async with get_system_db() as conn:
         sessions = await session_repo.list_sessions_by_user(
             conn=conn,
-            user_id=user_id,
+            user_id=current_user["user_id"],
             project_id=project_id,
             limit=limit,
             offset=offset,
@@ -381,7 +417,7 @@ async def list_sessions(
 
 
 @router.get("/{session_id}/export")
-async def export_session(session_id: UUID):
+async def export_session(session_id: UUID, current_user: CurrentActiveUser):
     """
     Export a session as JSON metadata and markdown.
 
@@ -391,6 +427,14 @@ async def export_session(session_id: UUID):
         - filename: Suggested filename for download
     """
     try:
+        # Verify ownership
+        async with get_system_db() as conn:
+            session = await session_repo.get_session(conn=conn, session_id=session_id)
+            if not session:
+                raise HTTPException(status_code=404, detail="Session not found")
+            if session["user_id"] != current_user["user_id"]:
+                raise HTTPException(status_code=403, detail="Access denied")
+
         result = await export_service.export_session(session_id)
         return {
             "success": True,

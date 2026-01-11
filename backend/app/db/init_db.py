@@ -7,7 +7,9 @@ Run this script manually or as part of deployment.
 
 import asyncio
 import sys
+from datetime import datetime, timezone
 
+from app.config import settings
 from app.db.models import (
     ARTIFACTS_TABLE_SQL,
     MESSAGES_TABLE_SQL,
@@ -19,6 +21,42 @@ from app.db.pool import get_system_db
 from app.shared.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+async def create_admin_user(conn) -> None:
+    """
+    Create the admin user if it doesn't exist.
+
+    Uses credentials from settings (env vars).
+    """
+    from app.core.auth import get_password_hash
+
+    # Check if admin user already exists
+    existing = await conn.fetchrow(
+        "SELECT user_id FROM users WHERE email = $1",
+        settings.admin_email,
+    )
+
+    if existing:
+        logger.info("Admin user already exists", email=settings.admin_email)
+        return
+
+    # Create admin user
+    password_hash = get_password_hash(settings.admin_password)
+    now = datetime.now(timezone.utc)
+
+    await conn.execute(
+        """
+        INSERT INTO users (email, password_hash, full_name, role, is_active, created_at, updated_at)
+        VALUES ($1, $2, $3, 'admin', TRUE, $4, $4)
+        """,
+        settings.admin_email,
+        password_hash,
+        settings.admin_full_name,
+        now,
+    )
+
+    logger.info("Admin user created", email=settings.admin_email)
 
 
 async def init_database():
@@ -48,6 +86,10 @@ async def init_database():
             # Create artifacts table
             logger.info("Creating artifacts table")
             await conn.execute(ARTIFACTS_TABLE_SQL)
+
+            # Create admin user
+            logger.info("Creating admin user if not exists")
+            await create_admin_user(conn)
 
         logger.info("Database initialization completed successfully")
         return True

@@ -7,9 +7,10 @@ from typing import Any
 from uuid import UUID
 
 from app.config import settings
+from app.core.deps import CurrentActiveUser
 from app.core.storage import get_storage_service
 from app.db.pool import get_system_db
-from app.db.session_db import ArtifactRepository
+from app.db.session_db import ArtifactRepository, ProjectRepository, SessionRepository
 from app.services.workspace_service import WorkspaceService
 from app.shared.logging import get_logger
 from fastapi import APIRouter, HTTPException, Query
@@ -30,12 +31,14 @@ def _safe_isoformat(value: Any) -> str:
 
 
 artifact_repo = ArtifactRepository()
+session_repo = SessionRepository()
+project_repo = ProjectRepository()
 storage_service = get_storage_service()
 workspace_service = WorkspaceService()
 
 
 @router.get("/{artifact_id}")
-async def get_artifact(artifact_id: UUID):
+async def get_artifact(artifact_id: UUID, current_user: CurrentActiveUser):
     """Get artifact metadata by ID."""
     async with get_system_db() as conn:
         artifact = await artifact_repo.get_artifact(conn, artifact_id)
@@ -43,11 +46,24 @@ async def get_artifact(artifact_id: UUID):
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
 
+    # Verify ownership via session
+    async with get_system_db() as conn:
+        if artifact.get("session_id"):
+            session = await session_repo.get_session(conn, artifact["session_id"])
+            if session and session["user_id"] != current_user["user_id"]:
+                raise HTTPException(status_code=403, detail="Access denied")
+        elif artifact.get("project_id"):
+            project = await project_repo.get_project(conn, artifact["project_id"])
+            if project and project["user_id"] != current_user["user_id"]:
+                raise HTTPException(status_code=403, detail="Access denied")
+
     return {
         "success": True,
         "data": {
             "artifact_id": str(artifact["artifact_id"]),
-            "session_id": str(artifact["session_id"]),
+            "session_id": (
+                str(artifact["session_id"]) if artifact.get("session_id") else None
+            ),
             "file_name": artifact["file_name"],
             "file_type": artifact["file_type"],
             "mime_type": artifact["mime_type"],

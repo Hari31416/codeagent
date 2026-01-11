@@ -16,23 +16,6 @@ logger = get_logger(__name__)
 class ProjectRepository:
     """Repository for project CRUD operations."""
 
-    async def ensure_user_exists(
-        self,
-        conn: Connection,
-        user_id: UUID,
-    ) -> None:
-        """Ensure user exists in the database."""
-        await conn.execute(
-            """
-            INSERT INTO users (user_id, email, full_name)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (user_id) DO NOTHING
-            """,
-            user_id,
-            f"{user_id}@anonymous.codeagent",
-            "Anonymous User",
-        )
-
     async def create_project(
         self,
         conn: Connection,
@@ -41,7 +24,6 @@ class ProjectRepository:
         description: str | None = None,
     ) -> dict[str, Any]:
         """Create a new project."""
-        await self.ensure_user_exists(conn, user_id)
 
         row = await conn.fetchrow(
             """
@@ -130,7 +112,6 @@ class ProjectRepository:
         offset: int = 0,
     ) -> list[dict[str, Any]]:
         """List projects for a user."""
-        await self.ensure_user_exists(conn, user_id)
 
         rows = await conn.fetch(
             """
@@ -165,23 +146,6 @@ class ProjectRepository:
 class SessionRepository:
     """Repository for session CRUD operations."""
 
-    async def ensure_user_exists(
-        self,
-        conn: Connection,
-        user_id: UUID,
-    ) -> None:
-        """Ensure user exists in the database."""
-        await conn.execute(
-            """
-            INSERT INTO users (user_id, email, full_name)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (user_id) DO NOTHING
-            """,
-            user_id,
-            f"{user_id}@anonymous.codeagent",
-            "Anonymous User",
-        )
-
     async def create_session(
         self,
         conn: Connection,
@@ -190,7 +154,6 @@ class SessionRepository:
         name: str | None = None,
     ) -> dict[str, Any]:
         """Create a new session with workspace prefix."""
-        await self.ensure_user_exists(conn, user_id)
 
         row = await conn.fetchrow(
             """
@@ -291,7 +254,6 @@ class SessionRepository:
         offset: int = 0,
     ) -> list[dict[str, Any]]:
         """List sessions for a user, optionally filtered by project."""
-        await self.ensure_user_exists(conn, user_id)
 
         if project_id:
             rows = await conn.fetch(

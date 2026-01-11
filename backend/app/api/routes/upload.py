@@ -6,8 +6,10 @@ Handles file uploads to MinIO with atomic database registration.
 
 from uuid import UUID
 
+from app.config import settings
+from app.core.deps import CurrentActiveUser
 from app.db.pool import get_system_db
-from app.db.session_db import ArtifactRepository
+from app.db.session_db import ArtifactRepository, ProjectRepository, SessionRepository
 from app.services.workspace_service import WorkspaceService
 from app.shared.logging import get_logger
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -18,6 +20,8 @@ router = APIRouter(prefix="/api/v1", tags=["upload"])
 
 workspace_service = WorkspaceService()
 artifact_repo = ArtifactRepository()
+session_repo = SessionRepository()
+project_repo = ProjectRepository()
 
 
 def get_file_type(filename: str) -> str:
@@ -47,6 +51,7 @@ def get_mime_type(file_type: str) -> str:
 @router.post("/sessions/{session_id}/upload")
 async def upload_file(
     session_id: UUID,
+    current_user: CurrentActiveUser,
     file: UploadFile = File(...),
 ) -> JSONResponse:
     """
@@ -56,6 +61,14 @@ async def upload_file(
     2. Creates artifact record in PostgreSQL
     3. Returns artifact_id and presigned URL
     """
+    # Verify session ownership
+    async with get_system_db() as conn:
+        session = await session_repo.get_session(conn, session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        if session["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+
     try:
         # Read file content
         content = await file.read()
@@ -83,10 +96,9 @@ async def upload_file(
                 minio_object_key=object_key,
             )
 
-        # Generate presigned URL for immediate access
-        presigned_url = await workspace_service.get_presigned_url(
-            session_id=session_id,
-            file_name=file_name,
+        # Generate standardized URL for immediate access
+        presigned_url = (
+            f"{settings.api_base_url}/artifacts/{artifact['artifact_id']}/download"
         )
 
         logger.info(
@@ -125,6 +137,7 @@ async def upload_file(
 @router.post("/projects/{project_id}/upload")
 async def upload_project_file(
     project_id: UUID,
+    current_user: CurrentActiveUser,
     file: UploadFile = File(...),
 ) -> JSONResponse:
     """
@@ -134,6 +147,14 @@ async def upload_project_file(
     2. Creates artifact record in PostgreSQL with project_id
     3. Returns artifact_id and presigned URL
     """
+    # Verify project ownership
+    async with get_system_db() as conn:
+        project = await project_repo.get_project(conn, project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        if project["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+
     try:
         # Read file content
         content = await file.read()
@@ -161,10 +182,9 @@ async def upload_project_file(
                 minio_object_key=object_key,
             )
 
-        # Generate presigned URL for immediate access
-        presigned_url = await workspace_service.get_project_presigned_url(
-            project_id=project_id,
-            file_name=file_name,
+        # Generate standardized URL for immediate access
+        presigned_url = (
+            f"{settings.api_base_url}/artifacts/{artifact['artifact_id']}/download"
         )
 
         logger.info(
