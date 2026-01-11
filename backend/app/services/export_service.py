@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+from app.config import settings
 from app.db.pool import get_system_db
 from app.db.session_db import (
     ArtifactRepository,
@@ -344,22 +345,34 @@ class ExportService:
                                                     )
                                                     parts.append(f"\n{output_md}\n")
                                             else:
+                                                url = await self.workspace_service.get_presigned_url(
+                                                    session_id, artifact["file_name"]
+                                                )
                                                 parts.append(
-                                                    f"\n**[File: {artifact['file_name']}](/api/v1/artifacts/{artifact['artifact_id']}/download)** (JSON Data - click to download)\n"
+                                                    f"\n**[File: {artifact['file_name']}]({url})** (JSON Data - click to download)\n"
                                                 )
                                         except Exception:
+                                            url = await self.workspace_service.get_presigned_url(
+                                                session_id, artifact["file_name"]
+                                            )
                                             parts.append(
-                                                f"\n**[File: {artifact['file_name']}](/api/v1/artifacts/{artifact['artifact_id']}/download)** (JSON File - click to download)\n"
+                                                f"\n**[File: {artifact['file_name']}]({url})** (JSON File - click to download)\n"
                                             )
 
                                     elif f_type == "html":
+                                        url = await self.workspace_service.get_presigned_url(
+                                            session_id, artifact["file_name"]
+                                        )
                                         parts.append(
-                                            f"\n**[Interactive Artifact: {artifact['file_name']}](/api/v1/artifacts/{artifact['artifact_id']}/download)** (HTML File - click to download/view)\n"
+                                            f"\n**[Interactive Artifact: {artifact['file_name']}]({url})** (HTML File - click to download/view)\n"
                                         )
 
                                     elif f_type == "csv":
+                                        url = await self.workspace_service.get_presigned_url(
+                                            session_id, artifact["file_name"]
+                                        )
                                         parts.append(
-                                            f"\n**[File: {artifact['file_name']}](/api/v1/artifacts/{artifact['artifact_id']}/download)** (CSV Data - click to download)\n"
+                                            f"\n**[File: {artifact['file_name']}]({url})** (CSV Data - click to download)\n"
                                         )
 
             i += 1
