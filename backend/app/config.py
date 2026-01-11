@@ -145,7 +145,7 @@ class Settings(BaseSettings):
     )
     llm_temperature: float = 0.1
     llm_max_tokens: int = 4096
-    openai_api_key: str | None = None
+    nvidia_nim_api_key: str | None = None
     openrouter_api_key: str | None = None
     openrouter_api_base: str = "https://openrouter.ai/api/v1"
 

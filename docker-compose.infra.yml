@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-codeagent}
       POSTGRES_DB: ${POSTGRES_DB:-codeagent}
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      - "${POSTGRES_PORT:-5434}:5432"
     volumes:
       - ${DOCKER_DATA_DIR:-./volumes}/postgres:/var/lib/postgresql/data
     healthcheck:
@@ -25,11 +25,11 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+      - "${MINIO_API_PORT:-9002}:9000"
+      - "${MINIO_CONSOLE_PORT:-9003}:9001"
     volumes:
       - ${DOCKER_DATA_DIR:-./volumes}/minio:/data
-    command: server /data --console-address ":9001"
+    command: server /data --console-address ":9003"
     healthcheck:
       test: [ "CMD", "mc", "ready", "local" ]
       interval: 10s
@@ -41,7 +41,7 @@ services:
     container_name: codeagent-redis
     restart: unless-stopped
     ports:
-      - "${REDIS_PORT:-6380}:6379"
+      - "${REDIS_PORT:-6381}:6379"
     volumes:
       - ${DOCKER_DATA_DIR:-./volumes}/redis:/data
     command: redis-server --appendonly yes
