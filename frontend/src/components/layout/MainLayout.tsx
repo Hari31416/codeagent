@@ -36,8 +36,18 @@ import { Download } from 'lucide-react'
 export function MainLayout() {
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null)
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-    const [isArtifactsOpen, setIsArtifactsOpen] = useState(true)
+    const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return window.innerWidth >= 768
+        }
+        return true
+    })
+    const [isArtifactsOpen, setIsArtifactsOpen] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return window.innerWidth >= 1100
+        }
+        return true
+    })
     const [lastUpdated, setLastUpdated] = useState(Date.now())
     const [theme, setTheme] = useState<'light' | 'dark'>(() => {
         if (typeof window !== 'undefined') {
@@ -101,7 +111,8 @@ export function MainLayout() {
     const isDesktop = useMediaQuery("(min-width: 1024px)")
     const isMobile = useMediaQuery("(max-width: 768px)")
 
-    const isSidebarCollapsed = !isDesktop
+    const isSidebarCollapsed = !isDesktop && !isMobile
+    const isSidebarOverlay = isMobile
 
     // Artifacts drawer mode
     const isArtifactsOverlay = !useMediaQuery("(min-width: 1100px)")
@@ -162,7 +173,8 @@ export function MainLayout() {
     const handleSessionSelect = useCallback((sessionId: string | null) => {
         setCurrentSessionId(sessionId)
         setSelectedArtifact(null)
-    }, [])
+        if (isMobile) setIsSidebarOpen(false)
+    }, [isMobile])
 
     const handleArtifactSelect = useCallback((artifactId: string) => {
         const artifact = artifacts.find(a => a.artifact_id === artifactId)
@@ -232,14 +244,25 @@ export function MainLayout() {
 
     return (
         <div className="flex h-screen bg-background overflow-hidden">
+            {/* Sidebar Backdrop (Mobile only) */}
+            {isSidebarOverlay && isSidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+
             {/* Project Sidebar */}
             <div className={cn(
-                "transition-all duration-300 ease-in-out overflow-hidden bg-muted/30 flex flex-col",
+                "transition-all duration-300 ease-in-out bg-muted/30 flex flex-col",
+                isSidebarOverlay
+                    ? "fixed left-0 top-0 bottom-0 z-50 shadow-xl border-r"
+                    : "relative border-r",
                 isSidebarOpen
-                    ? (isSidebarCollapsed ? "w-[60px] border-r" : "w-[280px] border-r")
-                    : "w-0 border-none"
+                    ? (isSidebarOverlay ? "w-[280px] translate-x-0" : (isSidebarCollapsed ? "w-[60px]" : "w-[280px]"))
+                    : (isSidebarOverlay ? "w-[280px] -translate-x-full" : "w-0 border-none overflow-hidden")
             )}>
-                <div className={cn("h-full", isSidebarCollapsed ? "w-[60px]" : "w-[280px]")}>
+                <div className={cn("h-full", (isSidebarCollapsed && !isSidebarOverlay) ? "w-[60px]" : "w-[280px]")}>
                     <ProjectSidebar
                         projects={projects}
                         selectedProjectId={selectedProjectId}
@@ -247,7 +270,10 @@ export function MainLayout() {
                         onProjectSelect={handleProjectSelect}
                         onSessionSelect={handleSessionSelect}
                         onNewProject={handleNewProject}
-                        onNewSession={handleNewSession}
+                        onNewSession={(projectId) => {
+                            handleNewSession(projectId)
+                            if (isMobile) setIsSidebarOpen(false)
+                        }}
                         onDeleteProject={deleteProject}
                         onExportProject={handleExportProject}
                         lastUpdated={lastUpdated}
