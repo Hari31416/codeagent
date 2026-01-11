@@ -55,12 +55,16 @@ class CacheWarmer:
 
             while not self._stop_event.is_set():
                 try:
+                    # Wait for the refresh interval before checking cache
                     await asyncio.wait_for(
-                        self._refresh_stale_cache(),
+                        self._stop_event.wait(),
                         timeout=refresh_interval,
                     )
+                    # If we get here, stop_event was set
+                    break
                 except asyncio.TimeoutError:
-                    pass
+                    # Timeout means we should refresh
+                    await self._refresh_stale_cache()
         except asyncio.CancelledError:
             logger.info("cache_warming_cancelled")
         except Exception as e:

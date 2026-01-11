@@ -16,6 +16,18 @@ from pydantic import BaseModel
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/sessions", tags=["sessions"])
 
+
+def _safe_isoformat(value: Any) -> str:
+    """Safely convert a datetime or string to ISO format string."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
 session_repo = SessionRepository()
 message_repo = MessageRepository()
 artifact_repo = ArtifactRepository()
@@ -323,7 +335,7 @@ async def get_session_artifacts(session_id: UUID):
                     "file_type": a["file_type"],
                     "mime_type": a["mime_type"],
                     "size_bytes": a["size_bytes"],
-                    "created_at": a["created_at"].isoformat(),
+                    "created_at": _safe_isoformat(a["created_at"]),
                     "presigned_url": url,
                 }
             )
@@ -341,7 +353,7 @@ async def get_session_artifacts(session_id: UUID):
                     "file_type": a["file_type"],
                     "mime_type": a["mime_type"],
                     "size_bytes": a["size_bytes"],
-                    "created_at": a["created_at"].isoformat(),
+                    "created_at": _safe_isoformat(a["created_at"]),
                 }
             )
 
