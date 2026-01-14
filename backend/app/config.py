@@ -7,6 +7,7 @@ All settings loaded from environment variables.
 
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import quote
 
 from pydantic import Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -60,8 +61,10 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         """Async PostgreSQL connection URL."""
+        user = quote(self.postgres_user, safe="")
+        password = quote(self.postgres_password, safe="")
         return (
-            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+            f"postgresql+asyncpg://{user}:{password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
@@ -69,8 +72,10 @@ class Settings(BaseSettings):
     @property
     def database_url_sync(self) -> str:
         """Sync PostgreSQL connection URL (for migrations)."""
+        user = quote(self.postgres_user, safe="")
+        password = quote(self.postgres_password, safe="")
         return (
-            f"postgresql://{self.postgres_user}:{self.postgres_password}"
+            f"postgresql://{user}:{password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
@@ -94,14 +99,17 @@ class Settings(BaseSettings):
     def redis_url(self) -> str:
         """Redis connection URL."""
         if self.redis_password:
-            return f"redis://:{self.redis_password}@{self.redis_host}:{self.redis_port}/{self.redis_db}"
+            password = quote(self.redis_password, safe="")
+            return f"redis://:{password}@{self.redis_host}:{self.redis_port}/{self.redis_db}"
         return f"redis://{self.redis_host}:{self.redis_port}/{self.redis_db}"
 
     # ─────────────────────────────────────────────────────────────────────────
     # MinIO (S3-compatible storage)
     # ─────────────────────────────────────────────────────────────────────────
     minio_endpoint: str = "localhost:9000"
-    minio_public_endpoint: str | None = None  # External URL for presigned URLs (e.g., https://minio.example.com)
+    minio_public_endpoint: str | None = (
+        None  # External URL for presigned URLs (e.g., https://minio.example.com)
+    )
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin"
     minio_secure: bool = False
