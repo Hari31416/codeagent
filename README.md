@@ -70,7 +70,7 @@ graph TD
 - **Natural Language to Code**: Converts text queries into optimized Python code using `pandas`, `numpy`, and professional visualization libraries.
 - **Enhanced Reasoning & Direct Answers**: The agent utilizes a `final_result` variable to provide concise, direct answers alongside its full reasoning path.
 - **Session & Project Export**: Export entire sessions or projects into structured Markdown, JSON, or high-quality PDF formats with embedded visuals.
-- **Multimodal LLM Support**: Leverage frontier models like Claude 3.5, GPT-4o, and Gemini 1.5 Pro via OpenRouter.
+- **Multimodal LLM Support**: Leverage frontier models like Claude 4.5, GPT-5.2, and Gemini 3 Pro via OpenRouter.
 - **Interactive Visualizations**: Real-time rendering of `Plotly` graphs, `Matplotlib` charts, and interactive tables with auto-formatting.
 - **Dark Mode & Modern UI**: Sleek, responsive interface built with Tailwind CSS v4 and Shadcn UI, featuring full dark mode support and micro-animations.
 - **Secure Code Sandbox**: Executes AI-generated code in an isolated environment with restricted imports and resource limits.
